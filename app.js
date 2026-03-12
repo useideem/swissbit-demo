@@ -349,6 +349,15 @@ async function trustDevice() {
 
     // Success — update state and show actions
     STATE.loginID = user;
+    const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
+    if (isRegisterMode) {
+      await showPopup(`User ID: ${user} successfully registered with FIDO credential on iShield Key.`);
+      const redirectParams = new URLSearchParams(window.location.search);
+      redirectParams.delete('action');
+      const qs = redirectParams.toString();
+      window.location.href = window.location.pathname + (qs ? '?' + qs : '');
+      return;
+    }
     showFlash('flash-status', 'Device trusted successfully', 'success');
     await updateUI();
 
@@ -646,14 +655,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('username').value = savedUsername;
   }
 
-  // Auto-populate from URL ?email= parameter
-  const urlEmail = new URLSearchParams(window.location.search).get('email');
+  // Auto-populate from URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlEmail = urlParams.get('email');
   if (urlEmail) {
     document.getElementById('username').value = urlEmail;
     localStorage.setItem('username', urlEmail);
     document.getElementById('new-user-toggle').checked = true;
     document.getElementById('use-passkeys-toggle').checked = false;
     setPasskeysToggle(urlEmail, false);
+  }
+
+  // ?action=register — rename Trust Device button
+  if (urlParams.get('action') === 'register') {
+    document.getElementById('trust-device-btn').textContent = 'Register iShield Key';
   }
 
   // "New" toggle — switching it re-routes to SETUP or LOGIN
