@@ -20,7 +20,8 @@
  */
 
 import {
-  hasStoredCredential,
+  hasLocalEnrollmentMarker,
+  ENROLLMENT_MARKER_PREFIX,
   isSuspended,
   setSuspended,
   getPasskeysToggle,
@@ -192,13 +193,14 @@ function showScreen(screenId) {
     target.setAttribute('aria-hidden', 'false');
   }
 
-  // Username field is readonly on ACTIONS screen, editable otherwise
+  // Username field is readonly on ACTIONS screen, and on LOGIN when "New" is off (existing user)
   const usernameEl = document.getElementById('username');
-  usernameEl.readOnly = (screenId === 'ACTIONS');
+  const isNew = document.getElementById('new-user-toggle').checked;
+  usernameEl.readOnly = (screenId === 'ACTIONS') || (screenId === 'LOGIN' && !isNew);
 
-  // Show inline passkeys toggle only on ACTIONS screen
-  const inlineToggle = document.getElementById('passkeys-inline-toggle');
-  if (inlineToggle) inlineToggle.hidden = (screenId !== 'ACTIONS');
+  // Hide "New" toggle on ACTIONS screen (irrelevant once logged in)
+  const newToggle = document.getElementById('new-user-toggle-container');
+  if (newToggle) newToggle.hidden = (screenId === 'ACTIONS');
 
   // Announce screen change to screen readers
   const announcer = document.getElementById('screen-announcer');
@@ -211,8 +213,8 @@ function showScreen(screenId) {
 async function updateUI() {
   const user = getUsername();
 
-  // Check iShield credential (localStorage)
-  const hasIShield = user ? hasStoredCredential(user) : false;
+  // Check iShield enrollment marker (localStorage — may be absent on Device B)
+  const hasIShield = user ? hasLocalEnrollmentMarker(user) : false;
 
   // Check ZSM & Passkey status (SDK)
   let hasZSM = false;
@@ -232,18 +234,19 @@ async function updateUI() {
   function setPill(el, value) {
     el.textContent = value;
     const pill = el.closest('.pill');
-    pill.classList.remove('pill-success', 'pill-danger', 'pill-neutral');
+    pill.classList.remove('pill-success', 'pill-danger', 'pill-neutral', 'pill-unknown');
     if (value === 'true' || value === 'Active') pill.classList.add('pill-success');
     else if (value === 'false' || value === 'Suspended') pill.classList.add('pill-danger');
+    else if (value === 'unknown') pill.classList.add('pill-unknown');
     else pill.classList.add('pill-neutral');
   }
 
-  setPill(document.getElementById('ishield-status'), !user ? '--' : (hasIShield ? 'true' : 'false'));
+  setPill(document.getElementById('ishield-status'), !user ? '--' : (hasIShield ? 'true' : 'unknown'));
   setPill(document.getElementById('zsm-status'), !user ? '--' : (hasZSM ? 'true' : 'false'));
   setPill(document.getElementById('passkey-status'), !user ? '--' : (hasPasskey ? 'true' : 'false'));
 
-  // Passkeys+ pill
-  const fullyEnrolled = hasIShield && hasZSM && hasPasskey;
+  // Passkeys+ pill — iShield is no longer required (credential lives on the key)
+  const fullyEnrolled = hasZSM && hasPasskey;
   const suspended = isSuspended(user);
   const ppStatus = !user || !fullyEnrolled ? 'Not Enrolled' : (suspended ? 'Suspended' : 'Active');
   setPill(document.getElementById('passkeys-plus-status'), ppStatus);
@@ -252,28 +255,41 @@ async function updateUI() {
   document.getElementById('suspend-device').disabled = !(fullyEnrolled && !suspended);
 
   // Restore Use Passkeys toggle state
-  document.getElementById('actions-use-passkeys').checked = getPasskeysToggle(user);
+  // On ACTIONS: disable if no passkey registered (can't use what doesn't exist)
+  // On LOGIN/SETUP: keep enabled so user can opt into passkeys enrollment
+  const passkeysToggleEl = document.getElementById('use-passkeys-toggle');
+  if (!hasPasskey && STATE.loginID) {
+    passkeysToggleEl.checked = false;
+    passkeysToggleEl.disabled = true;
+  } else {
+    passkeysToggleEl.checked = getPasskeysToggle(user);
+    passkeysToggleEl.disabled = false;
+  }
 
   // Enable/disable Trust Device button
   document.getElementById('trust-device-btn').disabled = !user;
 
-  // Login screen: toggle visibility and button text based on suspended state
-  const toggleRow = document.querySelector('#LOGIN .toggle-row');
+  // Login button text based on suspended state
   const loginBtn = document.getElementById('login-btn');
-  if (toggleRow) toggleRow.style.display = suspended ? 'none' : '';
   if (loginBtn) loginBtn.textContent = suspended ? 'Reactivate & Login' : 'Login';
 
-  // Determine which screen to show
-  if (hasZSM && hasPasskey) {
-    // Device is trusted — show Login screen (or Actions if already logged in)
-    if (STATE.loginID) {
-      showScreen('ACTIONS');
-    } else {
-      showScreen('LOGIN');
-    }
+  // If ZSM is present, this user is already enrolled — force New off and disable toggle
+  const newToggleEl = document.getElementById('new-user-toggle');
+  if (hasZSM) {
+    newToggleEl.checked = false;
+    newToggleEl.disabled = true;
   } else {
-    // No credentials — show Trust Device screen
+    newToggleEl.disabled = false;
+  }
+
+  // Determine which screen to show — driven by "New" toggle, not server-side passkey
+  const isNewUser = newToggleEl.checked;
+  if (STATE.loginID) {
+    showScreen('ACTIONS');
+  } else if (isNewUser) {
     showScreen('SETUP');
+  } else {
+    showScreen('LOGIN');
   }
 }
 
@@ -305,8 +321,8 @@ async function trustDevice() {
       return;
     }
 
-    // Verify enrollment succeeded (webauthnEnroll stores to localStorage)
-    if (!hasStoredCredential(user)) {
+    // Verify enrollment succeeded (webauthnEnroll stores marker to localStorage)
+    if (!hasLocalEnrollmentMarker(user)) {
       showFlash('flash-status', 'iShield enrollment failed or cancelled', 'failure');
       return;
     }
@@ -320,9 +336,10 @@ async function trustDevice() {
     }
 
     // Step 3: Enroll ZSM + Passkeys+
-    showFlash('flash-status', 'Enrolling device with ZSM + Passkeys+...', 'success');
+    const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
+    showFlash('flash-status', usePasskeys ? 'Enrolling device with ZSM + Passkeys+...' : 'Enrolling device with ZSM...', 'success');
     await initializeZSMClient(user);
-    const result = await enroll(user, true);
+    const result = await enroll(user, usePasskeys);
 
     if (!result || result === false || result instanceof Error) {
       showFlash('flash-status', 'ZSM enrollment failed', 'failure');
@@ -359,6 +376,73 @@ async function login() {
   btn.setAttribute('aria-disabled', 'true');
 
   try {
+    // Check if ZSM is bound locally. If not, this device needs iShield + enrollment.
+    // User said they're not new (New toggle = OFF), so treat as existing user on new device.
+    await initializeZSMClient(user);
+    let hasLocalZSM = false;
+    let hasPasskey = false;
+    try {
+      const status = await checkAllEnrollment(user);
+      if (status && !(status instanceof Error)) {
+        hasLocalZSM = status.hasZSMCred === true || !!status.zsmCredID;
+        hasPasskey = status.hasRemotePasskey === true;
+      }
+    } catch (_) {}
+    const needsBinding = !hasLocalZSM;
+
+    if (needsBinding) {
+      const action = await showPopup(
+        'This device needs to be bound. Insert your iShield USB key.'
+      );
+      if (action === 'cancel') return;
+
+      // Step 1: iShield authentication (discoverable credential)
+      showFlash('flash-status', 'Touch your iShield USB key...', 'success', 60000);
+      const ishieldResult = await webauthnAuthenticate(user);
+      if (!ishieldResult.success) {
+        showFlash('flash-status',
+          ishieldResult.error?.name === 'NotAllowedError'
+            ? 'Cancelled or timed out'
+            : ishieldResult.error?.message || 'iShield authentication failed',
+          'failure');
+        return;
+      }
+      if (ishieldResult.clientDataHash) {
+        updateIShieldChallengeDisplay(ishieldResult.clientDataHash, ishieldResult.signatureHex);
+      }
+
+      // Verify the key's credential matches the entered username
+      if (ishieldResult.authenticatedUser && ishieldResult.authenticatedUser !== user) {
+        showFlash('flash-status',
+          `Wrong credential selected — key returned "${ishieldResult.authenticatedUser}" but you entered "${user}". Please try again and select the correct credential.`,
+          'failure', 8000);
+        return;
+      }
+
+      // Step 2: Enroll ZSM (+ Passkeys if toggle is on)
+      const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
+      showFlash('flash-status', 'Binding device...', 'success');
+      await initializeZSMClient(user);
+      const enrollResult = await enroll(user, usePasskeys);
+
+      if (!enrollResult || enrollResult === false || enrollResult instanceof Error) {
+        showFlash('flash-status', 'Device binding failed', 'failure');
+        return;
+      }
+
+      // Step 3: Store local enrollment marker so iShield pill shows 'true'
+      localStorage.setItem(ENROLLMENT_MARKER_PREFIX + user, JSON.stringify({
+        boundFromRemote: true,
+        createdAt: new Date().toISOString()
+      }));
+
+      STATE.loginID = user;
+      updateAuthIcons({ ishield: true, zsm: true, passkeys: usePasskeys });
+      showFlash('flash-status', 'Device bound successfully', 'success');
+      await updateUI();
+      return;
+    }
+
     // If suspended, require iShield + Passkeys+ to reactivate
     if (isSuspended(user)) {
       showFlash('flash-status', 'Device suspended — touch your iShield USB key to reactivate', 'success', 60000);
@@ -374,11 +458,20 @@ async function login() {
       }
       updateIShieldChallengeDisplay(ishieldResult.clientDataHash, ishieldResult.signatureHex);
 
-      showFlash('flash-status', 'Now authenticate with Passkeys+ to complete reactivation...', 'success');
+      // Verify the key's credential matches the entered username
+      if (ishieldResult.authenticatedUser && ishieldResult.authenticatedUser !== user) {
+        showFlash('flash-status',
+          `Wrong credential selected — key returned "${ishieldResult.authenticatedUser}" but you entered "${user}". Please try again and select the correct credential.`,
+          'failure', 8000);
+        return;
+      }
+
+      const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
+      showFlash('flash-status', 'Authenticating to complete reactivation...', 'success');
       await initializeZSMClient(user);
-      const reactivateResult = await authenticate(user, true);
+      const reactivateResult = await authenticate(user, usePasskeys);
       if (!reactivateResult.success) {
-        showFlash('flash-status', 'Passkeys+ reactivation failed', 'failure');
+        showFlash('flash-status', 'Reactivation failed', 'failure');
         return;
       }
 
@@ -387,16 +480,31 @@ async function login() {
       }
 
       setSuspended(user, false);
-      setPasskeysToggle(user, true);
       STATE.loginID = user;
-      updateAuthIcons({ ishield: true, zsm: true, passkeys: true });
+      updateAuthIcons({ ishield: true, zsm: true, passkeys: usePasskeys });
       await updateUI();
       showFlash('flash-status', 'Device reactivated', 'success');
       return;
     }
 
-    const usePasskeys = document.getElementById('login-use-passkeys').checked;
+    const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
     await initializeZSMClient(user);
+
+    // If user wants passkeys but none are enrolled yet, enroll them first
+    if (usePasskeys && !hasPasskey) {
+      showFlash('flash-status', 'Enrolling Passkeys+...', 'success');
+      const enrollResult = await enroll(user, true);
+      if (!enrollResult || enrollResult === false || enrollResult instanceof Error) {
+        showFlash('flash-status', 'Passkeys+ enrollment failed', 'failure');
+        return;
+      }
+      STATE.loginID = user;
+      updateAuthIcons({ zsm: true, passkeys: true });
+      showFlash('flash-status', 'Passkeys+ enrolled successfully', 'success');
+      await updateUI();
+      return;
+    }
+
     const authResult = await authenticate(user, usePasskeys);
 
     if (!authResult.success) {
@@ -410,7 +518,7 @@ async function login() {
 
     STATE.loginID = user;
     updateAuthIcons({ zsm: true, passkeys: usePasskeys });
-    showScreen('ACTIONS');
+    await updateUI();
   } catch (err) {
     console.error('[login] Error:', err);
     showFlash('flash-status', 'Login failed', 'failure');
@@ -432,7 +540,7 @@ async function handleProtectedAction(actionKey) {
     return;
   }
 
-  const usePasskeys = document.getElementById('actions-use-passkeys')?.checked === true;
+  const usePasskeys = document.getElementById('use-passkeys-toggle')?.checked === true;
   const authResult = await authenticate(STATE.loginID, usePasskeys);
 
   if (!authResult.success) {
@@ -449,12 +557,12 @@ async function handleProtectedAction(actionKey) {
 // ---------------------------------------------------------------------------
 // logOut
 // ---------------------------------------------------------------------------
-function logOut() {
+async function logOut() {
   resetClient();
   STATE.reset();
   updateChallengeDisplay('--', '--');
   updateAuthIcons();
-  showScreen('LOGIN');
+  await updateUI();
 }
 
 // ---------------------------------------------------------------------------
@@ -476,13 +584,13 @@ async function suspendDevice() {
   const user = getUsername();
   if (!user) return;
 
-  if (!hasStoredCredential(user)) return;
   if (isSuspended(user)) return;
 
   const action = await showPopup('Suspend Passkeys+ login? You will need your iShield USB key to reactivate.');
   if (action === 'cancel') return;
 
   setSuspended(user, true);
+  document.getElementById('new-user-toggle').checked = false;
   logOut();
   await updateUI();
 }
@@ -515,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Persist Use Passkeys toggle state
-  document.getElementById('actions-use-passkeys').addEventListener('change', (e) => {
+  document.getElementById('use-passkeys-toggle').addEventListener('change', (e) => {
     setPasskeysToggle(getUsername(), e.target.checked);
   });
 
@@ -537,6 +645,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (savedUsername) {
     document.getElementById('username').value = savedUsername;
   }
+
+  // Auto-populate from URL ?email= parameter
+  const urlEmail = new URLSearchParams(window.location.search).get('email');
+  if (urlEmail) {
+    document.getElementById('username').value = urlEmail;
+    localStorage.setItem('username', urlEmail);
+    document.getElementById('new-user-toggle').checked = true;
+    document.getElementById('use-passkeys-toggle').checked = false;
+    setPasskeysToggle(urlEmail, false);
+  }
+
+  // "New" toggle — switching it re-routes to SETUP or LOGIN
+  document.getElementById('new-user-toggle').addEventListener('change', () => updateUI());
 
   // Persist username on input, update button state, and recheck enrollment status
   let usernameTimer = null;

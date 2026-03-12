@@ -9,18 +9,18 @@
  * WHAT IT DOES:
  *   - Enrolls an iShield USB key for a user (creates a FIDO2 credential)
  *   - Authenticates a user by requesting a USB key touch
- *   - Stores/retrieves credential IDs in localStorage
+ *   - Stores enrollment markers in localStorage (credential lives on the key)
  *   - Manages device suspension state (localStorage flags)
  *   - Provides base64url and SHA-256 encoding utilities used by umfa.js
  *
  * HOW TO USE:
- *   import { webauthnEnroll, webauthnAuthenticate, hasStoredCredential } from './ishield.js';
+ *   import { webauthnEnroll, webauthnAuthenticate, hasLocalEnrollmentMarker } from './ishield.js';
  *
  *   // Enroll a new key (throws on failure -- wrap in try/catch)
  *   await webauthnEnroll('alice');
  *
- *   // Check if a key is enrolled
- *   if (hasStoredCredential('alice')) { ... }
+ *   // Check if this device has an enrollment marker
+ *   if (hasLocalEnrollmentMarker('alice')) { ... }
  *
  *   // Authenticate with the enrolled key
  *   const result = await webauthnAuthenticate('alice');
@@ -37,8 +37,8 @@
  *     (as opposed to 'platform' which targets TouchID/FaceID/Windows Hello)
  *   - userVerification: 'discouraged' -- iShield keys use touch only; they
  *     do not have a PIN or biometric, so don't require user verification
- *   - Credential IDs are stored as base64url JSON in localStorage under
- *     the key 'fido2_credential:<username>'
+ *   - Enrollment markers are stored in localStorage under
+ *     the key 'ishield_enrolled:<username>'
  *   - Suspension state is stored in localStorage under
  *     'passkeys_suspended:<username>'
  */
@@ -48,11 +48,16 @@
 // ---------------------------------------------------------------------------
 
 /**
- * localStorage key prefix for FIDO2 credential storage.
- * Full key = FIDO2_STORAGE_PREFIX + username
+ * localStorage key prefix for iShield enrollment markers.
+ * Full key = ENROLLMENT_MARKER_PREFIX + username
  * Value = JSON string: { id: '<base64url>', createdAt: '<ISO date>' }
+ *
+ * NOTE: The credential itself lives on the iShield key (discoverable/resident
+ * credential). This localStorage marker is only used to indicate that
+ * enrollment happened on THIS device. On a new device the marker won't
+ * exist, but the key can still authenticate via discoverable credential.
  */
-export const FIDO2_STORAGE_PREFIX = 'fido2_credential:';
+export const ENROLLMENT_MARKER_PREFIX = 'ishield_enrolled:';
 
 /**
  * localStorage key prefix for device suspension state.
@@ -73,16 +78,18 @@ export const PASSKEYS_TOGGLE_PREFIX = 'actions_passkeys_toggle:';
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true if a FIDO2 credential has been enrolled for this user.
+ * Returns true if an iShield enrollment marker exists for this user on
+ * this device. The marker is set after enrollment or device binding.
  *
- * Use this to gate enrollment vs. authentication flows -- if a credential
- * exists, the user can authenticate; if not, they need to enroll first.
+ * NOTE: A false return does NOT mean the user has no iShield credential --
+ * the credential lives on the physical key and works on any device. This
+ * only tells you whether enrollment happened on THIS device.
  *
  * @param {string} user - The username to check.
- * @returns {boolean} True if a credential is stored in localStorage.
+ * @returns {boolean} True if an enrollment marker is stored in localStorage.
  */
-export function hasStoredCredential(user) {
-  return user ? !!localStorage.getItem(FIDO2_STORAGE_PREFIX + user) : false;
+export function hasLocalEnrollmentMarker(user) {
+  return user ? !!localStorage.getItem(ENROLLMENT_MARKER_PREFIX + user) : false;
 }
 
 /**
@@ -242,6 +249,17 @@ export async function webauthnEnroll(user) {
 
   console.log('[FIDO2 Enroll] Starting enrollment for user:', user);
 
+  // Build excludeCredentials from any existing enrollment marker to prevent
+  // duplicate registration on the same key
+  const excludeCredentials = [];
+  const existingMarker = localStorage.getItem(ENROLLMENT_MARKER_PREFIX + user);
+  if (existingMarker) {
+    try {
+      const { id } = JSON.parse(existingMarker);
+      if (id) excludeCredentials.push({ id: base64urlToBuffer(id), type: 'public-key', transports: ['usb'] });
+    } catch (_) {}
+  }
+
   const options = {
     publicKey: {
       rp: { name: 'Demo Swissbit', id: location.hostname },
@@ -251,10 +269,12 @@ export async function webauthnEnroll(user) {
         { alg: -7, type: 'public-key' },   // ES256
         { alg: -257, type: 'public-key' }   // RS256
       ],
+      excludeCredentials,
       authenticatorSelection: {
         authenticatorAttachment: 'cross-platform', // USB keys, not platform authenticators
-        userVerification: 'discouraged',           // iShield is touch-only, no PIN
-        residentKey: 'discouraged'
+        userVerification: 'required',              // PIN required — forces credProtect Level 2
+        residentKey: 'required',                   // Store credential ON the key (discoverable)
+        requireResidentKey: true                   // Compat for older browsers
       },
       attestation: 'none',
       timeout: 60000
@@ -276,7 +296,7 @@ export async function webauthnEnroll(user) {
       id: bufferToBase64url(credential.rawId),
       createdAt: new Date().toISOString()
     };
-    localStorage.setItem(FIDO2_STORAGE_PREFIX + user, JSON.stringify(stored));
+    localStorage.setItem(ENROLLMENT_MARKER_PREFIX + user, JSON.stringify(stored));
 
     console.log('[FIDO2 Enroll] Success:', {
       credentialId: stored.id,
@@ -291,54 +311,38 @@ export async function webauthnEnroll(user) {
 }
 
 /**
- * Authenticates a user with their enrolled iShield USB key via raw WebAuthn.
+ * Authenticates a user with their iShield USB key via raw WebAuthn.
  *
- * This is used in the login flow when the device is suspended (requires
- * physical USB key touch to reactivate) and during Trust Device enrollment
- * verification. It calls navigator.credentials.get() targeting only the
- * specific credential ID that was enrolled for this user.
+ * Uses discoverable (resident) credentials -- the key presents its own
+ * stored credential without needing an allowCredentials list. This means
+ * authentication works on ANY device, not just the one where enrollment
+ * happened.
+ *
+ * The `user` parameter is used to VERIFY the authenticated identity: the
+ * `userHandle` returned by the key must match the expected username.
  *
  * Returns a structured result object instead of throwing, so the caller
  * can cleanly branch on success vs. failure and display appropriate messages.
  *
  * RESULT SHAPES:
- *   Success: { success: true, clientDataHash: string, signatureHex: string }
+ *   Success: { success: true, clientDataHash: string, signatureHex: string, authenticatedUser: string }
  *     - clientDataHash: SHA-256 hex of the clientDataJSON (for display)
  *     - signatureHex: hex-encoded raw signature bytes (for display)
+ *     - authenticatedUser: username recovered from the key's userHandle
  *
  *   Failure: { success: false, error: Error }
  *     - error.name === 'NotAllowedError': user cancelled or timed out
+ *     - error.message contains 'mismatch': wrong user on this key
  *     - Other error names: unexpected failure
  *
- *   No credential: { success: false, error: Error('No iShield key enrolled...') }
- *
- * CALLER PATTERN (in app.js):
- *   const result = await webauthnAuthenticate(user);
- *   if (!result.success) {
- *     showFlash(result.error?.name === 'NotAllowedError' ? 'Cancelled' : result.error?.message);
- *     return;
- *   }
- *   updateIShieldChallengeDisplay(result.clientDataHash, result.signatureHex);
- *
- * @param {string} user - The username to authenticate. Used to look up the
- *   stored credential ID in localStorage.
- * @returns {Promise<{success: boolean, clientDataHash?: string, signatureHex?: string, error?: Error}>}
+ * @param {string} user - The expected username. Verified against userHandle.
+ * @returns {Promise<{success: boolean, clientDataHash?: string, signatureHex?: string, authenticatedUser?: string, error?: Error}>}
  */
 export async function webauthnAuthenticate(user) {
   if (!user) {
     return { success: false, error: new Error('No user specified.') };
   }
 
-  const stored = localStorage.getItem(FIDO2_STORAGE_PREFIX + user);
-  if (!stored) {
-    return {
-      success: false,
-      error: new Error('No iShield key enrolled for this user.')
-    };
-  }
-
-  const { id: credId } = JSON.parse(stored);
-  const credentialId = base64urlToBuffer(credId);
   const challenge = crypto.getRandomValues(new Uint8Array(32));
 
   console.log('[FIDO2 Auth] Starting authentication for user:', user);
@@ -348,12 +352,30 @@ export async function webauthnAuthenticate(user) {
       publicKey: {
         challenge,
         rpId: location.hostname,
-        allowCredentials: [{ id: credentialId, type: 'public-key', transports: ['usb'] }],
-        userVerification: 'discouraged',
+        userVerification: 'required',
         timeout: 60000
       }
     });
-    console.log('[FIDO2 Auth] Success');
+    console.log('[FIDO2 Auth] Success, attachment:', assertion.authenticatorAttachment);
+
+    // Verify a cross-platform authenticator (USB key) was used, not platform (Touch ID)
+    if (assertion.authenticatorAttachment === 'platform') {
+      return {
+        success: false,
+        error: new Error('Please use your iShield USB key, not Touch ID or a platform passkey.')
+      };
+    }
+
+    // Decode userHandle to recover the authenticated username
+    let authenticatedUser = null;
+    if (assertion.response.userHandle && assertion.response.userHandle.byteLength > 0) {
+      authenticatedUser = new TextDecoder().decode(assertion.response.userHandle);
+    }
+
+    // Log mismatch but don't fail — caller decides what to do
+    if (authenticatedUser && authenticatedUser !== user) {
+      console.warn('[FIDO2 Auth] User mismatch:', { expected: user, got: authenticatedUser });
+    }
 
     // Extract challenge and signature for display purposes
     try {
@@ -364,11 +386,10 @@ export async function webauthnAuthenticate(user) {
         new Uint8Array(assertion.response.signature),
         byte => byte.toString(16).padStart(2, '0')
       ).join('');
-      return { success: true, clientDataHash, signatureHex };
+      return { success: true, clientDataHash, signatureHex, authenticatedUser };
     } catch (extractErr) {
       console.warn('[FIDO2 Auth] Could not extract challenge data:', extractErr.message);
-      // Assertion itself succeeded -- return success without display data
-      return { success: true };
+      return { success: true, authenticatedUser };
     }
   } catch (err) {
     console.error('[FIDO2 Auth] Error:', { name: err.name, message: err.message });

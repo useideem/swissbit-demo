@@ -596,6 +596,16 @@ body {
   color: var(--color-danger);
 }
 
+.pill.pill-unknown {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.pill.pill-unknown b {
+  color: var(--color-warning);
+}
+
 .pill.pill-neutral b {
   color: var(--color-text-secondary);
 }
@@ -730,11 +740,18 @@ body {
 
 /* ===== Inline Toggle (username row) ===== */
 
+.toggle-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .toggle-inline {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -745,6 +762,8 @@ body {
 .toggle-inline-label {
   font-size: 0.6875rem;
   font-weight: 600;
+  min-width: 5.5em;
+  text-align: right;
   color: var(--color-text-secondary);
   white-space: nowrap;
   text-transform: uppercase;
@@ -895,9 +914,9 @@ body {
     flex-wrap: wrap;
   }
 
-  .toggle-inline {
+  .toggle-stack {
     flex-basis: 100%;
-    justify-content: flex-end;
+    align-items: flex-end;
     margin-top: -4px;
   }
 

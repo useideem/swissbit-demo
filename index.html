@@ -35,12 +35,21 @@
     <div class="username-row">
       <label for="username">User ID</label>
       <input type="text" id="username" placeholder="Enter your user ID" autocomplete="off">
-      <div class="toggle-inline" id="passkeys-inline-toggle" hidden>
-        <span class="toggle-inline-label">Passkeys</span>
-        <label class="toggle-switch toggle-sm">
-          <input type="checkbox" id="actions-use-passkeys" checked>
-          <span class="toggle-slider"></span>
-        </label>
+      <div class="toggle-stack" id="toggle-stack">
+        <div class="toggle-inline" id="new-user-toggle-container">
+          <span class="toggle-inline-label">New</span>
+          <label class="toggle-switch toggle-sm">
+            <input type="checkbox" id="new-user-toggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-inline">
+          <span class="toggle-inline-label">Passkeys</span>
+          <label class="toggle-switch toggle-sm">
+            <input type="checkbox" id="use-passkeys-toggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -51,13 +60,6 @@
 
     <!-- LOGIN screen — device trusted, user logged out -->
     <div class="screen" id="LOGIN">
-      <div class="toggle-row">
-        <label class="toggle-label" for="login-use-passkeys">Passkeys+</label>
-        <label class="toggle-switch">
-          <input type="checkbox" id="login-use-passkeys" checked>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
       <button id="login-btn" class="btn btn-primary">Login</button>
     </div>
 
