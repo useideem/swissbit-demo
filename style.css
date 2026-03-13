@@ -84,6 +84,14 @@ body {
 
 body.wave-mode {
   background: url('./wave-bg.jpg') center center / cover no-repeat fixed;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@supports (-webkit-touch-callout: none) {
+  body.wave-mode {
+    background-attachment: scroll;
+  }
 }
 
 body.wave-mode::before {
@@ -990,6 +998,10 @@ body.wave-mode .footer {
 @media (max-width: 520px) {
   body {
     padding: 20px 12px;
+  }
+
+  body.wave-mode {
+    padding: 16px 16px;
   }
 
   .header {
