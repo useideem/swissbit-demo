@@ -179,7 +179,7 @@ const PROTECTED_ACTION_LABELS = {
 async function fetchWaveProfile(email) {
   if (!email || email === '--') return;
   try {
-    const res = await fetch(`https://sbit.authconcepts.com:3033/users/by-email?email=${encodeURIComponent(email)}`);
+    const res = await fetch(`/api/user?email=${encodeURIComponent(email)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || '--';
