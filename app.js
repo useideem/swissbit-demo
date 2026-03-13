@@ -327,12 +327,15 @@ async function trustDevice() {
       return;
     }
 
-    // Step 2: Show confirmation popup before ZSM enrollment
-    const action = await showPopup("Now let's enroll with Passkeys+ (ZSM+Passkey)");
-    if (action === 'cancel') {
-      showFlash('flash-status', 'Passkeys+ enrollment cancelled', 'failure');
-      await updateUI();
-      return;
+    // Step 2: Show confirmation popup before ZSM enrollment (skip in register mode)
+    const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
+    if (!isRegisterMode) {
+      const action = await showPopup("Now let's enroll with Passkeys+ (ZSM+Passkey)");
+      if (action === 'cancel') {
+        showFlash('flash-status', 'Passkeys+ enrollment cancelled', 'failure');
+        await updateUI();
+        return;
+      }
     }
 
     // Step 3: Enroll ZSM + Passkeys+
@@ -349,13 +352,11 @@ async function trustDevice() {
 
     // Success — update state and show actions
     STATE.loginID = user;
-    const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
     if (isRegisterMode) {
-      await showPopup(`User ID: ${user} successfully registered with FIDO credential on iShield Key.`);
       const redirectParams = new URLSearchParams(window.location.search);
       redirectParams.delete('action');
-      const qs = redirectParams.toString();
-      window.location.href = window.location.pathname + (qs ? '?' + qs : '');
+      redirectParams.set('msg', `${user} has iShield Key registered`);
+      window.location.href = window.location.pathname + '?' + redirectParams.toString();
       return;
     }
     showFlash('flash-status', 'Device trusted successfully', 'success');
@@ -669,6 +670,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // ?action=register — rename Trust Device button
   if (urlParams.get('action') === 'register') {
     document.getElementById('trust-device-btn').textContent = 'Register iShield Key';
+  }
+
+  // ?msg= — show flash message from redirect
+  const urlMsg = urlParams.get('msg');
+  if (urlMsg) {
+    showFlash('flash-status', urlMsg, 'success', 6000);
   }
 
   // "New" toggle — switching it re-routes to SETUP or LOGIN
