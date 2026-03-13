@@ -104,7 +104,7 @@ body.wave-mode::before {
   z-index: 0;
 }
 
-body.wave-mode > * {
+body.wave-mode > *:not(.popup-overlay) {
   position: relative;
   z-index: 1;
 }
