@@ -706,13 +706,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ?action=register — rename Trust Device button
-  if (urlParams.get('action') === 'register') {
+  const actionParam = urlParams.get('action');
+  if (actionParam === 'register') {
     document.getElementById('trust-device-btn').textContent = 'Register iShield Key';
   }
 
   // ?action=wave — wave mode (profile card instead of action buttons)
-  if (urlParams.get('action') === 'wave') {
+  if (actionParam === 'wave') {
     document.body.dataset.waveMode = 'true';
+  }
+
+  // Background image for register and wave modes
+  if (actionParam === 'register' || actionParam === 'wave') {
+    document.body.classList.add('wave-mode');
   }
 
   // ?msg= — show flash message from redirect

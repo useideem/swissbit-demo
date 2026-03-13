@@ -80,6 +80,54 @@ body {
   padding: 20px 16px;
 }
 
+/* ===== Wave Mode Background ===== */
+
+body.wave-mode {
+  background: url('./wave-bg.jpg') center center / cover no-repeat fixed;
+}
+
+body.wave-mode::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 0;
+}
+
+body.wave-mode > * {
+  position: relative;
+  z-index: 1;
+}
+
+body.wave-mode .header {
+  background: rgba(240, 242, 245, 0.85);
+  padding: 14px 20px 10px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 10px;
+}
+
+body.wave-mode .logo-row {
+  margin-bottom: 6px;
+  gap: 12px;
+}
+
+body.wave-mode .logo-swissbit {
+  height: 30px;
+}
+
+body.wave-mode .subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+body.wave-mode .footer {
+  background: rgba(240, 242, 245, 0.85);
+  padding: 12px 20px;
+  border-radius: var(--radius-lg);
+}
+
 /* ===== Header ===== */
 
 .header {
@@ -103,7 +151,7 @@ body {
 }
 
 .logo-swissbit {
-  height: 80px;
+  height: 32px;
 }
 
 .logo-divider {
@@ -146,10 +194,15 @@ body {
   align-items: center;
   gap: 10px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .username-row[hidden] {
   display: none;
+}
+
+#username {
+  min-width: 0;
 }
 
 .username-row label {
@@ -746,10 +799,13 @@ body {
 
 .toggle-stack {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 12px;
   margin-left: auto;
   flex-shrink: 0;
+  flex-basis: 100%;
+  justify-content: flex-end;
+  margin-top: -4px;
 }
 
 .toggle-inline {
@@ -951,13 +1007,6 @@ body {
 
   .username-row {
     margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-
-  .toggle-stack {
-    flex-basis: 100%;
-    align-items: flex-end;
-    margin-top: -4px;
   }
 
   .toggle-row {
