@@ -65,14 +65,24 @@
 
     <!-- ACTIONS screen — logged in -->
     <div class="screen" id="ACTIONS">
-      <div class="action-grid">
-        <button class="btn btn-action" data-action="make-payment">Make Payment</button>
-        <button class="btn btn-action" data-action="transfer-money">Transfer Money</button>
-        <button class="btn btn-action" data-action="change-setting">Change Setting</button>
-        <button class="btn btn-action" data-action="add-beneficiary">Add Beneficiary</button>
+      <!-- Profile card (wave mode only) -->
+      <div id="wave-profile" class="wave-profile" hidden>
+        <div class="profile-row"><span class="profile-label">Name</span><span class="profile-value" id="wave-name">--</span></div>
+        <div class="profile-row"><span class="profile-label">Email</span><span class="profile-value" id="wave-email">--</span></div>
+        <div class="profile-row"><span class="profile-label">Balance</span><span class="profile-value" id="wave-balance">--</span></div>
       </div>
 
-      <div id="action-status" class="flash" role="status" aria-live="polite"></div>
+      <!-- Default actions (hidden in wave mode) -->
+      <div id="default-actions">
+        <div class="action-grid">
+          <button class="btn btn-action" data-action="make-payment">Make Payment</button>
+          <button class="btn btn-action" data-action="transfer-money">Transfer Money</button>
+          <button class="btn btn-action" data-action="change-setting">Change Setting</button>
+          <button class="btn btn-action" data-action="add-beneficiary">Add Beneficiary</button>
+        </div>
+
+        <div id="action-status" class="flash" role="status" aria-live="polite"></div>
+      </div>
 
       <button id="logout-btn" class="btn btn-secondary">Log Out</button>
 

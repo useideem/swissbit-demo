@@ -148,6 +148,10 @@ body {
   margin-bottom: 20px;
 }
 
+.username-row[hidden] {
+  display: none;
+}
+
 .username-row label {
   font-size: 0.8125rem;
   font-weight: 600;
@@ -836,6 +840,42 @@ body {
   flex: 1;
   margin-top: 0;
   border-radius: var(--radius-md);
+}
+
+/* ===== Wave Mode Profile Card ===== */
+
+.wave-profile {
+  padding: 8px 0;
+}
+
+.wave-profile[hidden] {
+  display: none;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+.profile-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-value {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text);
 }
 
 /* ===== Keyframe Animations ===== */

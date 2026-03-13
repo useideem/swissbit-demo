@@ -174,6 +174,24 @@ const PROTECTED_ACTION_LABELS = {
 };
 
 // ---------------------------------------------------------------------------
+// Wave mode — fetch user profile from backend
+// ---------------------------------------------------------------------------
+async function fetchWaveProfile(email) {
+  if (!email || email === '--') return;
+  try {
+    const res = await fetch(`https://sbit.authconcepts.com:3033/users/by-email?email=${encodeURIComponent(email)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || '--';
+    document.getElementById('wave-name').textContent = name;
+    document.getElementById('wave-email').textContent = data.email || email;
+    document.getElementById('wave-balance').textContent = data.balance != null ? `$${data.balance.toLocaleString()}` : '--';
+  } catch (err) {
+    console.error('[Wave] Failed to fetch profile:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // showScreen — simple screen switcher
 // ---------------------------------------------------------------------------
 const SCREEN_ANNOUNCEMENTS = {
@@ -201,6 +219,26 @@ function showScreen(screenId) {
   // Hide "New" toggle on ACTIONS screen (irrelevant once logged in)
   const newToggle = document.getElementById('new-user-toggle-container');
   if (newToggle) newToggle.hidden = (screenId === 'ACTIONS');
+
+  // Wave mode: on ACTIONS screen, show profile card instead of action buttons
+  const isWaveMode = document.body.dataset.waveMode === 'true';
+  if (screenId === 'ACTIONS' && isWaveMode) {
+    document.getElementById('default-actions').hidden = true;
+    document.getElementById('wave-profile').hidden = false;
+    // Hide username row, challenge displays
+    document.querySelector('.username-row').hidden = true;
+    document.getElementById('ishield-challenge-display').hidden = true;
+    document.getElementById('passkeys-challenge-display').hidden = true;
+    // Populate email from username
+    const email = document.getElementById('username')?.value?.trim() || '--';
+    document.getElementById('wave-email').textContent = email;
+    // Fetch user profile data
+    fetchWaveProfile(email);
+  } else {
+    document.getElementById('default-actions').hidden = false;
+    document.getElementById('wave-profile').hidden = true;
+    document.querySelector('.username-row').hidden = false;
+  }
 
   // Announce screen change to screen readers
   const announcer = document.getElementById('screen-announcer');
@@ -670,6 +708,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ?action=register — rename Trust Device button
   if (urlParams.get('action') === 'register') {
     document.getElementById('trust-device-btn').textContent = 'Register iShield Key';
+  }
+
+  // ?action=wave — wave mode (profile card instead of action buttons)
+  if (urlParams.get('action') === 'wave') {
+    document.body.dataset.waveMode = 'true';
   }
 
   // ?msg= — show flash message from redirect
