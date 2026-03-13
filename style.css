@@ -106,6 +106,8 @@ body.wave-mode .header {
   padding: 14px 20px 10px;
   border-radius: var(--radius-lg);
   margin-bottom: 10px;
+  margin-left: 8px;
+  margin-right: 8px;
 }
 
 body.wave-mode .logo-row {
@@ -126,6 +128,8 @@ body.wave-mode .footer {
   background: rgba(240, 242, 245, 0.85);
   padding: 12px 20px;
   border-radius: var(--radius-lg);
+  margin-left: 8px;
+  margin-right: 8px;
 }
 
 /* ===== Header ===== */
