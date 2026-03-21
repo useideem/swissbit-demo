@@ -231,7 +231,7 @@ body.wave-mode .footer {
   padding: 10px 14px;
   border: 1.5px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 400;
   color: var(--color-text);
   outline: none;
@@ -362,7 +362,7 @@ body.wave-mode .footer {
   cursor: default;
   color: var(--color-primary);
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 1rem;
   margin-bottom: 0;
 }
 #username[readonly]:focus {
