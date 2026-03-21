@@ -730,6 +730,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // "New" toggle — switching it re-routes to SETUP or LOGIN
   document.getElementById('new-user-toggle').addEventListener('change', () => updateUI());
 
+  // Show hint when clicking readonly username field
+  document.getElementById('username').addEventListener('click', (e) => {
+    if (e.target.readOnly) {
+      showFlash('flash-status', 'Reset Device before changing User ID', 'failure', 3000);
+    }
+  });
+
   // Persist username on input, update button state, and recheck enrollment status
   let usernameTimer = null;
   document.getElementById('username').addEventListener('input', (e) => {
