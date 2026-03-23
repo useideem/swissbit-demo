@@ -220,8 +220,22 @@ function showScreen(screenId) {
   const newToggle = document.getElementById('new-user-toggle-container');
   if (newToggle) newToggle.hidden = (screenId === 'ACTIONS');
 
-  // Wave mode: on ACTIONS screen, show profile card instead of action buttons
+  // Wave mode: update banner text based on screen
   const isWaveMode = document.body.dataset.waveMode === 'true';
+  if (isWaveMode) {
+    const headline = document.getElementById('wave-banner-headline');
+    const subtitle = document.getElementById('wave-banner-subtitle');
+    if (screenId === 'ACTIONS') {
+      headline.textContent = 'ONE AUTHENTICATION. ALL NIGHT ACCESS.';
+      subtitle.textContent = 'Your iShield trust is active and extended to this device.';
+      subtitle.hidden = false;
+    } else {
+      headline.textContent = 'Use your iShield Key and email provided at the booth';
+      subtitle.hidden = true;
+    }
+  }
+
+  // Wave mode: on ACTIONS screen, show profile card instead of action buttons
   if (screenId === 'ACTIONS' && isWaveMode) {
     document.getElementById('default-actions').hidden = true;
     document.getElementById('wave-profile').hidden = false;
@@ -234,10 +248,15 @@ function showScreen(screenId) {
     document.getElementById('wave-email').textContent = email;
     // Fetch user profile data
     fetchWaveProfile(email);
+    // Show CTA banner
+    document.getElementById('wave-cta-banner').hidden = false;
   } else {
     document.getElementById('default-actions').hidden = false;
     document.getElementById('wave-profile').hidden = true;
     document.querySelector('.username-row').hidden = false;
+    if (document.getElementById('wave-cta-banner')) {
+      document.getElementById('wave-cta-banner').hidden = true;
+    }
   }
 
   // Announce screen change to screen readers
@@ -714,6 +733,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ?action=wave — wave mode (profile card instead of action buttons)
   if (actionParam === 'wave') {
     document.body.dataset.waveMode = 'true';
+    document.getElementById('wave-banner').hidden = false;
+    // Default passkeys to true in wave mode (overridden if ZSM already local)
+    document.getElementById('use-passkeys-toggle').checked = true;
+    if (urlEmail) setPasskeysToggle(urlEmail, true);
   }
 
   // Background image for register and wave modes

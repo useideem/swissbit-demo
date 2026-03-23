@@ -140,6 +140,99 @@ body.wave-mode .footer {
   margin-right: 8px;
 }
 
+/* ===== Wave Banner ===== */
+
+.wave-banner {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  background: #1a1150;
+  border-radius: var(--radius-lg);
+  padding: 20px 24px 16px;
+  margin-bottom: 12px;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.wave-banner[hidden] {
+  display: none;
+}
+
+.wave-banner-headline {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #7cfc00;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.wave-banner-subtitle {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ===== Wave CTA Banner ===== */
+
+.wave-cta-banner {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  background: rgba(240, 242, 245, 0.9);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.wave-cta-banner[hidden] {
+  display: none;
+}
+
+.wave-cta-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #7c3aed;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.wave-cta-headline {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+
+.wave-cta-description {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.wave-cta-link {
+  display: inline-block;
+  background: #7c3aed;
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.wave-cta-link:hover {
+  background: #6d28d9;
+}
+
 /* ===== Header ===== */
 
 .header {
