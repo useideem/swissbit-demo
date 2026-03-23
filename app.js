@@ -357,6 +357,13 @@ async function updateUI() {
   } else {
     showScreen('LOGIN');
   }
+
+  // Wave mode: if ZSM is already bound, no iShield needed — update banner
+  const isWaveMode = document.body.dataset.waveMode === 'true';
+  if (isWaveMode && !STATE.loginID && hasZSM) {
+    const headline = document.getElementById('wave-banner-headline');
+    headline.textContent = "You've already trusted this device. Just login!";
+  }
 }
 
 // ---------------------------------------------------------------------------

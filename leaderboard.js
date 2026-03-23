@@ -23,7 +23,7 @@ async function loadLeaderboard() {
       if (currentEmail && user.email && user.email.toLowerCase() === currentEmail.toLowerCase()) {
         tr.classList.add('leaderboard-highlight');
       }
-      const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || '--';
+      const name = [user.lastName, user.firstName].filter(Boolean).join(', ') || '--';
       tr.innerHTML = `
         <td>${i + 1}</td>
         <td>${escapeHtml(name)}</td>
