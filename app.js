@@ -248,6 +248,9 @@ function showScreen(screenId) {
     document.getElementById('wave-email').textContent = email;
     // Fetch user profile data
     fetchWaveProfile(email);
+    // Set leaderboard link with email param
+    const lbLink = document.getElementById('leaderboard-link');
+    if (lbLink) lbLink.href = `./leaderboard.html?email=${encodeURIComponent(email)}`;
     // Show CTA banner
     document.getElementById('wave-cta-banner').hidden = false;
   } else {

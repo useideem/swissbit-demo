@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard | Wave Party</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body class="wave-mode">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-row">
+      <img src="./swissbit_logo.png" alt="Swissbit" class="logo logo-swissbit">
+      <span class="logo-divider"></span>
+      <img src="./ideem-logo.png" alt="Ideem" class="logo logo-ideem">
+    </div>
+    <p class="subtitle">Wave Party Leaderboard</p>
+  </header>
+
+  <!-- Leaderboard Card -->
+  <main class="card">
+    <div class="profile-row" style="justify-content:center;">
+      <a id="back-link" href="./" class="leaderboard-link">Return to Profile</a>
+    </div>
+    <div id="leaderboard-container">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+          <tr><td colspan="3" style="text-align:center;color:var(--color-text-secondary)">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module" src="./leaderboard.js"></script>
+
+</body>
+</html>
