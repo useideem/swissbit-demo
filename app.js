@@ -332,11 +332,17 @@ async function updateUI() {
 
   // If ZSM is present, this user is already enrolled — force New off and disable toggle
   const newToggleEl = document.getElementById('new-user-toggle');
-  if (hasZSM) {
+  const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
+  if (hasZSM && !isRegisterMode) {
     newToggleEl.checked = false;
     newToggleEl.disabled = true;
   } else {
     newToggleEl.disabled = false;
+  }
+
+  // In register mode, always force New on to show SETUP screen
+  if (isRegisterMode) {
+    newToggleEl.checked = true;
   }
 
   // Determine which screen to show — driven by "New" toggle, not server-side passkey
