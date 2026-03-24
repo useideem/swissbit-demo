@@ -272,9 +272,9 @@ export async function webauthnEnroll(user) {
       excludeCredentials,
       authenticatorSelection: {
         authenticatorAttachment: 'cross-platform', // USB keys, not platform authenticators
-        userVerification: 'required',              // PIN required — forces credProtect Level 2
-        residentKey: 'required',                   // Store credential ON the key (discoverable)
-        requireResidentKey: true                   // Compat for older browsers
+        userVerification: 'discouraged',           // Touch only — no PIN required
+        residentKey: 'discouraged',                // Non-discoverable — avoids PIN requirement
+        requireResidentKey: false                  // Compat for older browsers
       },
       attestation: 'none',
       timeout: 60000
@@ -347,12 +347,23 @@ export async function webauthnAuthenticate(user) {
 
   console.log('[FIDO2 Auth] Starting authentication for user:', user);
 
+  // Build allowCredentials from stored enrollment marker
+  const allowCredentials = [];
+  const marker = localStorage.getItem(ENROLLMENT_MARKER_PREFIX + user);
+  if (marker) {
+    try {
+      const { id } = JSON.parse(marker);
+      if (id) allowCredentials.push({ id: base64urlToBuffer(id), type: 'public-key', transports: ['usb'] });
+    } catch (_) {}
+  }
+
   try {
     const assertion = await navigator.credentials.get({
       publicKey: {
         challenge,
         rpId: location.hostname,
-        userVerification: 'required',
+        allowCredentials,
+        userVerification: 'discouraged',
         timeout: 60000
       }
     });
