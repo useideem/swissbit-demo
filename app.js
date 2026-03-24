@@ -400,16 +400,7 @@ async function trustDevice() {
       return;
     }
 
-    // Step 2: Show confirmation popup before ZSM enrollment (skip in register mode)
     const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
-    if (!isRegisterMode) {
-      const action = await showPopup("Now let's enroll with Passkeys+ (ZSM+Passkey)");
-      if (action === 'cancel') {
-        showFlash('flash-status', 'Passkeys+ enrollment cancelled', 'failure');
-        await updateUI();
-        return;
-      }
-    }
 
     // Step 3: Enroll ZSM + Passkeys+
     const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
