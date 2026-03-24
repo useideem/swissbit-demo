@@ -379,28 +379,34 @@ async function trustDevice() {
   btn.setAttribute('aria-disabled', 'true');
 
   try {
+    const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
+    const isWaveMode = document.body.dataset.waveMode === 'true';
+
     // Step 1: Enroll iShield USB key (raw WebAuthn)
+    // In wave mode, iShield is optional — silently skip on any failure
     showFlash('flash-status', 'Insert your iShield USB key...', 'success');
     try {
       await webauthnEnroll(user);
     } catch (err) {
-      showFlash('flash-status',
-        err.name === 'NotAllowedError' ? 'Cancelled or timed out' :
-        err.name === 'SecurityError' ? 'Security error — try HTTPS or localhost' :
-        err.name === 'InvalidStateError' ? 'Key already registered for this user' :
-        err.message || 'iShield enrollment failed',
-        'failure'
-      );
-      return;
+      if (isWaveMode) {
+        console.log('[trustDevice] Wave mode — iShield skipped:', err.name);
+      } else {
+        showFlash('flash-status',
+          err.name === 'NotAllowedError' ? 'Cancelled or timed out' :
+          err.name === 'SecurityError' ? 'Security error — try HTTPS or localhost' :
+          err.name === 'InvalidStateError' ? 'Key already registered for this user' :
+          err.message || 'iShield enrollment failed',
+          'failure'
+        );
+        return;
+      }
     }
 
-    // Verify enrollment succeeded (webauthnEnroll stores marker to localStorage)
-    if (!hasLocalEnrollmentMarker(user)) {
+    // Verify enrollment succeeded (skip check in wave mode — iShield is optional)
+    if (!isWaveMode && !hasLocalEnrollmentMarker(user)) {
       showFlash('flash-status', 'iShield enrollment failed or cancelled', 'failure');
       return;
     }
-
-    const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
 
     // Step 3: Enroll ZSM + Passkeys+
     const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
