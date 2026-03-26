@@ -28,12 +28,6 @@
     <p class="subtitle">Extending iShield to Trusted Devices</p>
   </header>
 
-  <!-- Wave mode banner -->
-  <div id="wave-banner" class="wave-banner" hidden>
-    <div class="wave-banner-headline" id="wave-banner-headline">Use your iShield Key and email provided at the booth</div>
-    <div class="wave-banner-subtitle" id="wave-banner-subtitle" hidden>Your iShield trust is active and extended to this device.</div>
-  </div>
-
   <!-- Main Card -->
   <main class="card">
 
@@ -71,17 +65,6 @@
 
     <!-- ACTIONS screen — logged in -->
     <div class="screen" id="ACTIONS">
-      <!-- Profile card (wave mode only) -->
-      <div id="wave-profile" class="wave-profile" hidden>
-        <div class="profile-row"><span class="profile-label">Name</span><span class="profile-value" id="wave-name">--</span></div>
-        <div class="profile-row"><span class="profile-label">Email</span><span class="profile-value" id="wave-email">--</span></div>
-        <div class="profile-row"><span class="profile-label">Balance</span><span class="profile-value" id="wave-balance">--</span></div>
-        <div class="profile-row" style="justify-content:center;padding-top:18px;">
-          <a href="./leaderboard.html" class="leaderboard-link" id="leaderboard-link">View Leaderboard</a>
-        </div>
-      </div>
-
-      <!-- Default actions (hidden in wave mode) -->
       <div id="default-actions">
         <div class="action-grid">
           <button class="btn btn-action" data-action="make-payment">Make Payment</button>
@@ -158,14 +141,6 @@
     <div id="flash-status" class="flash" role="status" aria-live="polite"></div>
 
   </main>
-
-  <!-- Powered by Ideem banner (wave mode only) -->
-  <div id="wave-cta-banner" class="wave-cta-banner" hidden>
-    <div class="wave-cta-label">POWERED BY IDEEM</div>
-    <div class="wave-cta-headline">BANK-GRADE AUTH. ZERO FRICTION.</div>
-    <div class="wave-cta-description">Want this for your platform? Ideem + Swissbit iShield authenticates every user, every transaction — silently.</div>
-    <a href="https://waveparty.useideem.com" target="_blank" class="wave-cta-link">See how it works at useIdeem.com</a>
-  </div>
 
   <!-- Confirmation Popup -->
   <div id="confirm-popup" class="popup-overlay" role="dialog" aria-modal="true" aria-labelledby="popup-message">

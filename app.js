@@ -174,24 +174,6 @@ const PROTECTED_ACTION_LABELS = {
 };
 
 // ---------------------------------------------------------------------------
-// Wave mode — fetch user profile from backend
-// ---------------------------------------------------------------------------
-async function fetchWaveProfile(email) {
-  if (!email || email === '--') return;
-  try {
-    const res = await fetch(`/api/user?email=${encodeURIComponent(email)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || '--';
-    document.getElementById('wave-name').textContent = name;
-    document.getElementById('wave-email').textContent = data.email || email;
-    document.getElementById('wave-balance').textContent = data.balance != null ? `$${data.balance.toLocaleString()}` : '--';
-  } catch (err) {
-    console.error('[Wave] Failed to fetch profile:', err);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // showScreen — simple screen switcher
 // ---------------------------------------------------------------------------
 const SCREEN_ANNOUNCEMENTS = {
@@ -219,48 +201,6 @@ function showScreen(screenId) {
   // Hide "New" toggle on ACTIONS screen (irrelevant once logged in)
   const newToggle = document.getElementById('new-user-toggle-container');
   if (newToggle) newToggle.hidden = (screenId === 'ACTIONS');
-
-  // Wave mode: update banner text based on screen
-  const isWaveMode = document.body.dataset.waveMode === 'true';
-  if (isWaveMode) {
-    const headline = document.getElementById('wave-banner-headline');
-    const subtitle = document.getElementById('wave-banner-subtitle');
-    if (screenId === 'ACTIONS') {
-      headline.textContent = 'ONE AUTHENTICATION. ALL NIGHT ACCESS.';
-      subtitle.textContent = 'Your iShield trust is active and extended to this device.';
-      subtitle.hidden = false;
-    } else {
-      headline.textContent = 'Use your iShield Key and email provided at the booth';
-      subtitle.hidden = true;
-    }
-  }
-
-  // Wave mode: on ACTIONS screen, show profile card instead of action buttons
-  if (screenId === 'ACTIONS' && isWaveMode) {
-    document.getElementById('default-actions').hidden = true;
-    document.getElementById('wave-profile').hidden = false;
-    // Hide username row, challenge displays
-    document.querySelector('.username-row').hidden = true;
-    document.getElementById('ishield-challenge-display').hidden = true;
-    document.getElementById('passkeys-challenge-display').hidden = true;
-    // Populate email from username
-    const email = document.getElementById('username')?.value?.trim() || '--';
-    document.getElementById('wave-email').textContent = email;
-    // Fetch user profile data
-    fetchWaveProfile(email);
-    // Set leaderboard link with email param
-    const lbLink = document.getElementById('leaderboard-link');
-    if (lbLink) lbLink.href = `./leaderboard.html?email=${encodeURIComponent(email)}`;
-    // Show CTA banner
-    document.getElementById('wave-cta-banner').hidden = false;
-  } else {
-    document.getElementById('default-actions').hidden = false;
-    document.getElementById('wave-profile').hidden = true;
-    document.querySelector('.username-row').hidden = false;
-    if (document.getElementById('wave-cta-banner')) {
-      document.getElementById('wave-cta-banner').hidden = true;
-    }
-  }
 
   // Announce screen change to screen readers
   const announcer = document.getElementById('screen-announcer');
@@ -335,17 +275,11 @@ async function updateUI() {
 
   // If ZSM is present, this user is already enrolled — force New off and disable toggle
   const newToggleEl = document.getElementById('new-user-toggle');
-  const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
-  if (hasZSM && !isRegisterMode) {
+  if (hasZSM) {
     newToggleEl.checked = false;
     newToggleEl.disabled = true;
   } else {
     newToggleEl.disabled = false;
-  }
-
-  // In register mode, always force New on to show SETUP screen
-  if (isRegisterMode) {
-    newToggleEl.checked = true;
   }
 
   // Determine which screen to show — driven by "New" toggle, not server-side passkey
@@ -356,13 +290,6 @@ async function updateUI() {
     showScreen('SETUP');
   } else {
     showScreen('LOGIN');
-  }
-
-  // Wave mode: if ZSM is already bound, no iShield needed — update banner
-  const isWaveMode = document.body.dataset.waveMode === 'true';
-  if (isWaveMode && !STATE.loginID && hasZSM) {
-    const headline = document.getElementById('wave-banner-headline');
-    headline.textContent = "You've already trusted this device. Just login!";
   }
 }
 
@@ -379,36 +306,27 @@ async function trustDevice() {
   btn.setAttribute('aria-disabled', 'true');
 
   try {
-    const isRegisterMode = new URLSearchParams(window.location.search).get('action') === 'register';
-    const isWaveMode = document.body.dataset.waveMode === 'true';
-
     // Step 1: Enroll iShield USB key (raw WebAuthn)
-    // In wave mode, iShield is optional — silently skip on any failure
     showFlash('flash-status', 'Insert your iShield USB key...', 'success');
     try {
       await webauthnEnroll(user);
     } catch (err) {
-      if (isWaveMode) {
-        console.log('[trustDevice] Wave mode — iShield skipped:', err.name);
-      } else {
-        showFlash('flash-status',
-          err.name === 'NotAllowedError' ? 'Cancelled or timed out' :
-          err.name === 'SecurityError' ? 'Security error — try HTTPS or localhost' :
-          err.name === 'InvalidStateError' ? 'Key already registered for this user' :
-          err.message || 'iShield enrollment failed',
-          'failure'
-        );
-        return;
-      }
+      showFlash('flash-status',
+        err.name === 'NotAllowedError' ? 'Cancelled or timed out' :
+        err.name === 'SecurityError' ? 'Security error — try HTTPS or localhost' :
+        err.name === 'InvalidStateError' ? 'Key already registered for this user' :
+        err.message || 'iShield enrollment failed',
+        'failure'
+      );
+      return;
     }
 
-    // Verify enrollment succeeded (skip check in wave mode — iShield is optional)
-    if (!isWaveMode && !hasLocalEnrollmentMarker(user)) {
+    if (!hasLocalEnrollmentMarker(user)) {
       showFlash('flash-status', 'iShield enrollment failed or cancelled', 'failure');
       return;
     }
 
-    // Step 3: Enroll ZSM + Passkeys+
+    // Step 2: Enroll ZSM + Passkeys+
     const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
     showFlash('flash-status', usePasskeys ? 'Enrolling device with ZSM + Passkeys+...' : 'Enrolling device with ZSM...', 'success');
     await initializeZSMClient(user);
@@ -422,13 +340,6 @@ async function trustDevice() {
 
     // Success — update state and show actions
     STATE.loginID = user;
-    if (isRegisterMode) {
-      const redirectParams = new URLSearchParams(window.location.search);
-      redirectParams.delete('action');
-      redirectParams.set('msg', `${user} has iShield Key registered`);
-      window.location.href = window.location.pathname + '?' + redirectParams.toString();
-      return;
-    }
     showFlash('flash-status', 'Device trusted successfully', 'success');
     await updateUI();
 
@@ -735,26 +646,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('new-user-toggle').checked = true;
     document.getElementById('use-passkeys-toggle').checked = false;
     setPasskeysToggle(urlEmail, false);
-  }
-
-  // ?action=register — rename Trust Device button
-  const actionParam = urlParams.get('action');
-  if (actionParam === 'register') {
-    document.getElementById('trust-device-btn').textContent = 'Register iShield Key';
-  }
-
-  // ?action=wave — wave mode (profile card instead of action buttons)
-  if (actionParam === 'wave') {
-    document.body.dataset.waveMode = 'true';
-    document.getElementById('wave-banner').hidden = false;
-    // Default passkeys to true in wave mode (overridden if ZSM already local)
-    document.getElementById('use-passkeys-toggle').checked = true;
-    if (urlEmail) setPasskeysToggle(urlEmail, true);
-  }
-
-  // Background image for register and wave modes
-  if (actionParam === 'register' || actionParam === 'wave') {
-    document.body.classList.add('wave-mode');
   }
 
   // ?msg= — show flash message from redirect
