@@ -16,12 +16,15 @@ const packages = [
   {
     name: '@ideem/zsm-client-sdk',
     files: [
+      'encodeUserIdentifier.js',
       'ErrorHandler.js',
       'EventCoordinator.js',
       'FIDO2Client.js',
       'FIDO2ClientBase.js',
       'GlobalScoping.js',
       'IdentityIndexing.js',
+      'PasskeysPlusClient.js',
+      'PKPUtils.js',
       'PluginManager.js',
       'RelyingParty.js',
       'RelyingPartyBase.js',
@@ -32,21 +35,6 @@ const packages = [
       'WebAuthnClient.js',
       'WebAuthnClientBase.js',
       'ZSMClientSDK.js',
-      'LICENSE',
-      'README.md',
-      'CHANGELOG.md'
-    ]
-  },
-  {
-    name: '@ideem/plugins.passkeys-plus',
-    files: [
-      'FIDO2Client.js',
-      'PKPUtils.js',
-      'PasskeysPlusClient.js',
-      'PasskeysPlus.js',
-      'RelyingParty.js',
-      'UMFAClient.js',
-      'WebAuthnClient.js',
       'LICENSE',
       'README.md',
       'CHANGELOG.md'

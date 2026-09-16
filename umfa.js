@@ -66,7 +66,6 @@
  */
 
 import { UMFAClient } from '@ideem/zsm-client-sdk';
-import PasskeysPlus from '@ideem/plugins.passkeys-plus'; // Side-effect: registers Passkeys+ plugin with the SDK
 
 import { hashSHA256 } from './ishield.js';
 
@@ -99,7 +98,7 @@ const configLoaded = fetch('./zsm_app_config.json')
           config[key] = config[key].replace(/[a-f0-9]{4}/g, '0000');
         }
       }
-      config.application_environment = 'test';
+      config.application_environment = 'TEST';
       console.log('[CONFIG] Using localhost test credentials');
     }
     console.log('[CONFIG] Loaded:', JSON.stringify(config, null, 2));
