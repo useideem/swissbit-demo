@@ -322,6 +322,8 @@ The demo includes raw WebAuthn integration with Swissbit iShield USB security ke
 
 All iShield code lives in [`ishield.js`](./ishield.js).
 
+> **Planned change:** test findings for reading an iShield key on any phone with a touch and no PIN (discoverable credentials, per-browser behaviour, Chrome's limits) are in [`docs/ishield-pinless-discoverable.md`](./docs/ishield-pinless-discoverable.md). They are not yet integrated into the demo.
+
 ### How iShield Fits the Flow
 
 In the demo's Trust Device flow, the user enrolls their iShield USB key FIRST (raw WebAuthn), then enrolls ZSM + Passkeys+. The iShield key serves as a recovery mechanism -- if a device is "suspended" (e.g., reported compromised), the user must physically touch their iShield key to reactivate Passkeys+ login.
@@ -747,6 +749,9 @@ Demo-swissbit/
   vendor/              -- Vendored SDK files (served as static assets)
   package.json         -- npm dependencies
   vercel.json          -- Vercel deployment config
+  fido-test.html/.js   -- Raw WebAuthn test page for hardware keys (create/get options, result checks)
+  dev-server.mjs       -- Local server for the test page: result log + shared issued-credential list
+  docs/                -- Test findings (see ishield-pinless-discoverable.md)
 ```
 
 ### Module Dependency Graph

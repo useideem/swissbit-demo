@@ -7,3 +7,6 @@ npm-debug.log*
 tests/
 test-results/
 playwright.config.js
+
+# Local result log written by dev-server.mjs
+.dev-logs/

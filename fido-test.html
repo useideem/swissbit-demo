@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIDO Key Tester | iShield Key</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header header-wide">
+    <div class="logo-row">
+      <img src="./swissbit_logo.png" alt="Swissbit" class="logo logo-swissbit">
+      <span class="logo-divider"></span>
+      <img src="./ideem-logo.png" alt="Ideem" class="logo logo-ideem">
+    </div>
+    <p class="subtitle">FIDO2 Key Tester: raw WebAuthn create and get</p>
+  </header>
+
+  <main class="card card-wide">
+
+    <!-- Flash message for ceremony feedback -->
+    <div id="flash-status" class="flash" role="status" aria-live="polite"></div>
+
+    <div class="ft-grid">
+
+      <!-- CREATE — register a new credential on the key -->
+      <section class="ft-panel" aria-labelledby="create-title">
+        <h2 id="create-title" class="ft-panel-title">Create <span class="ft-api">navigator.credentials.create()</span></h2>
+
+        <div class="ft-field">
+          <label class="ft-label" for="create-username">User name <code>user.name / user.id</code></label>
+          <input type="text" id="create-username" class="ft-input" value="test-user" autocomplete="off" spellcheck="false">
+        </div>
+
+        <fieldset class="ft-field">
+          <legend class="ft-label">Credential type <code>residentKey</code></legend>
+          <div class="ft-seg">
+            <label><input type="radio" name="create-rk" value="required" checked><span>Discoverable</span></label>
+            <label><input type="radio" name="create-rk" value="discouraged"><span>Non-discoverable</span></label>
+            <label><input type="radio" name="create-rk" value="preferred"><span>Preferred</span></label>
+          </div>
+          <p class="ft-hint" id="create-rk-hint"></p>
+        </fieldset>
+
+        <fieldset class="ft-field">
+          <legend class="ft-label">User verification <code>userVerification</code></legend>
+          <div class="ft-seg">
+            <label><input type="radio" name="create-uv" value="required"><span>Required</span></label>
+            <label><input type="radio" name="create-uv" value="preferred" checked><span>Preferred</span></label>
+            <label><input type="radio" name="create-uv" value="discouraged"><span>Discouraged</span></label>
+          </div>
+          <p class="ft-hint" id="create-uv-hint"></p>
+        </fieldset>
+
+        <fieldset class="ft-field">
+          <legend class="ft-label">Lookup protection <code>credProtect</code></legend>
+          <div class="ft-seg">
+            <label><input type="radio" name="create-cp" value=""><span>Browser default</span></label>
+            <label><input type="radio" name="create-cp" value="userVerificationOptional" checked><span>UV optional</span></label>
+            <label><input type="radio" name="create-cp" value="userVerificationRequired"><span>UV required</span></label>
+          </div>
+          <p class="ft-hint" id="create-cp-hint"></p>
+        </fieldset>
+
+        <fieldset class="ft-field">
+          <legend class="ft-label">Attestation <code>attestation</code></legend>
+          <div class="ft-seg">
+            <label><input type="radio" name="create-att" value="none" checked><span>None</span></label>
+            <label><input type="radio" name="create-att" value="direct"><span>Direct</span></label>
+          </div>
+          <p class="ft-hint">Direct asks the browser to pass on the key's own attestation statement, and Chrome may ask your permission first. With None, the browser may zero out the AAGUID (the key model ID).</p>
+        </fieldset>
+
+        <label class="ft-check">
+          <input type="checkbox" id="create-exclude" checked>
+          <span>Refuse if this key already holds a saved credential for this user name <code>excludeCredentials</code></span>
+        </label>
+
+        <button id="create-btn" class="btn btn-primary">Create credential</button>
+      </section>
+
+      <!-- GET — sign a fresh challenge with a credential on the key -->
+      <section class="ft-panel" aria-labelledby="get-title">
+        <h2 id="get-title" class="ft-panel-title">Get <span class="ft-api">navigator.credentials.get()</span></h2>
+
+        <div class="ft-field">
+          <label class="ft-label" for="get-credential">Which credential <code>allowCredentials</code></label>
+          <select id="get-credential" class="ft-input"></select>
+          <p class="ft-hint" id="get-credential-hint"></p>
+        </div>
+
+        <fieldset class="ft-field">
+          <legend class="ft-label">User verification <code>userVerification</code></legend>
+          <div class="ft-seg">
+            <label><input type="radio" name="get-uv" value="required"><span>Required</span></label>
+            <label><input type="radio" name="get-uv" value="preferred" checked><span>Preferred</span></label>
+            <label><input type="radio" name="get-uv" value="discouraged"><span>Discouraged</span></label>
+          </div>
+          <p class="ft-hint" id="get-uv-hint"></p>
+        </fieldset>
+
+        <button id="get-btn" class="btn btn-primary">Get assertion</button>
+      </section>
+
+    </div>
+
+    <!-- RESULT — what the key actually did -->
+    <section class="ft-section" id="result-section" aria-labelledby="result-title" hidden>
+      <h2 class="ft-section-title" id="result-title">Result</h2>
+      <div class="status-pills ft-pills" id="result-pills"></div>
+      <details class="ft-details" open>
+        <summary>Summary</summary>
+        <pre id="result-summary"></pre>
+      </details>
+      <details class="ft-details">
+        <summary>Request options sent to the browser</summary>
+        <pre id="result-request"></pre>
+      </details>
+      <details class="ft-details">
+        <summary>Raw response</summary>
+        <pre id="result-response"></pre>
+      </details>
+    </section>
+
+    <!-- SAVED CREDENTIALS — what this browser remembers -->
+    <section class="ft-section" aria-labelledby="creds-title">
+      <div class="ft-section-head">
+        <h2 class="ft-section-title" id="creds-title">Credentials saved in this browser</h2>
+        <button id="clear-creds" class="btn-danger-small">Clear all</button>
+      </div>
+      <p class="ft-hint">Each credential you create is saved here (ID and public key) so Get can target it and check its signatures. Deleting from this list does not remove anything from the key. Discoverable credentials stay on the key until you delete them in Chrome's "Manage security keys" settings.</p>
+      <div class="ft-table-wrap">
+        <table class="ft-creds">
+          <thead>
+            <tr>
+              <th scope="col">User</th>
+              <th scope="col">Type</th>
+              <th scope="col">Alg</th>
+              <th scope="col">UV at create</th>
+              <th scope="col">Created</th>
+              <th scope="col">Credential ID</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="creds-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer ft-footer">
+    <p class="ft-hint" id="browser-info">Checking which browser this is...</p>
+    <a href="./index.html">Back to the demo</a>
+  </footer>
+
+  <script type="module" src="./fido-test.js"></script>
+
+</body>
+</html>
