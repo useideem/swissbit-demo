@@ -12,7 +12,6 @@
  *                       tri-state; the UV flag in the result is the true/false
  *                       outcome
  *   - credProtect:      browser default / userVerificationOptional / userVerificationRequired
- *   - attestation:      none / direct
  *   - allowCredentials: empty (discoverable lookup) / all saved / one saved
  *
  * WHAT IT CHECKS ON EVERY RESULT:
@@ -604,7 +603,7 @@ async function createCredential() {
       requireResidentKey: residentKey === 'required',  // Level 1 compat; ignored when residentKey is understood
       userVerification: radioValue('create-uv')
     },
-    attestation: radioValue('create-att'),
+    attestation: 'none',                              // the page no longer offers a choice
     hints: ['security-key'],                           // Level 3: go straight to the security key UI
     extensions: {
       credProps: true,                                 // Report whether the credential is discoverable

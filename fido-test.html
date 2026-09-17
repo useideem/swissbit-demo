@@ -48,8 +48,8 @@
           <legend class="ft-label">User verification <code>userVerification</code></legend>
           <div class="ft-seg">
             <label><input type="radio" name="create-uv" value="required"><span>Required</span></label>
-            <label><input type="radio" name="create-uv" value="preferred" checked><span>Preferred</span></label>
-            <label><input type="radio" name="create-uv" value="discouraged"><span>Discouraged</span></label>
+            <label><input type="radio" name="create-uv" value="preferred"><span>Preferred</span></label>
+            <label><input type="radio" name="create-uv" value="discouraged" checked><span>Discouraged</span></label>
           </div>
           <p class="ft-hint" id="create-uv-hint"></p>
         </fieldset>
@@ -62,15 +62,6 @@
             <label><input type="radio" name="create-cp" value="userVerificationRequired"><span>UV required</span></label>
           </div>
           <p class="ft-hint" id="create-cp-hint"></p>
-        </fieldset>
-
-        <fieldset class="ft-field">
-          <legend class="ft-label">Attestation <code>attestation</code></legend>
-          <div class="ft-seg">
-            <label><input type="radio" name="create-att" value="none" checked><span>None</span></label>
-            <label><input type="radio" name="create-att" value="direct"><span>Direct</span></label>
-          </div>
-          <p class="ft-hint">Direct asks the browser to pass on the key's own attestation statement, and Chrome may ask your permission first. With None, the browser may zero out the AAGUID (the key model ID).</p>
         </fieldset>
 
         <label class="ft-check">
@@ -95,8 +86,8 @@
           <legend class="ft-label">User verification <code>userVerification</code></legend>
           <div class="ft-seg">
             <label><input type="radio" name="get-uv" value="required"><span>Required</span></label>
-            <label><input type="radio" name="get-uv" value="preferred" checked><span>Preferred</span></label>
-            <label><input type="radio" name="get-uv" value="discouraged"><span>Discouraged</span></label>
+            <label><input type="radio" name="get-uv" value="preferred"><span>Preferred</span></label>
+            <label><input type="radio" name="get-uv" value="discouraged" checked><span>Discouraged</span></label>
           </div>
           <p class="ft-hint" id="get-uv-hint"></p>
         </fieldset>
