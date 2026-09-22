@@ -43,6 +43,11 @@
  * in the lookup. The API matches the stored string exactly, so one canonical
  * form is the only thing that works. Format it for display if you like.
  *
+ * ONCE THE KEY AND THE DATABASE BOTH AGREE, the page shows a QR code pointing
+ * at the demo with ?email=<digits>. app.js already reads that parameter into
+ * the User ID field on load, so the attendee's own phone opens the demo
+ * knowing which account it is looking at, with nothing typed.
+ *
  * STORAGE:
  *   localStorage 'ishield_enrollments' -- one record per credential created
  *   here. Clearing it removes nothing from the key.
@@ -125,7 +130,7 @@ function normalizePhone(raw) {
 /**
  * The Ideem user API, reached through the proxy this site runs at /db.
  * The API itself sends no CORS headers, so the browser cannot call it
- * directly; dev-server.mjs and api/db/[...path].js both forward to it.
+ * directly; dev-server.mjs and api/db.js both forward to it.
  */
 const DB_BASE = './db';
 
@@ -140,7 +145,7 @@ function demoBalance() {
  *
  * @returns {Promise<object|null>} The record, or null when there is none.
  */
-async function findUserByPhone(phone) {
+export async function findUserByPhone(phone) {
   const res = await fetch(`${DB_BASE}/users/phone/${encodeURIComponent(phone)}`, { cache: 'no-store' });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`lookup returned ${res.status}`);
@@ -153,7 +158,7 @@ async function findUserByPhone(phone) {
  * that number is already there. An existing balance and photo are kept, so
  * re-enrolling somebody does not wipe what the demo shows for them.
  */
-async function saveUser({ firstName, lastName, phone }) {
+export async function saveUser({ firstName, lastName, phone }) {
   const existing = await findUserByPhone(phone);
   const record = {
     firstName,
@@ -175,6 +180,71 @@ async function saveUser({ firstName, lastName, phone }) {
   let returned = null;
   try { returned = text ? JSON.parse(text) : null; } catch (_) { /* not JSON; the status is what matters */ }
   return { updated: !!existing, userId: existing?.userId ?? returned?.userId ?? null, record, returned };
+}
+
+// ---------------------------------------------------------------------------
+// Hand-off to the demo
+// ---------------------------------------------------------------------------
+
+/**
+ * Where the QR code sends the attendee's phone. app.js reads ?email= into the
+ * User ID field on load (app.js:641-648), so the number the key now carries
+ * arrives typed in.
+ *
+ * A phone cannot reach the booth Mac's localhost, so a page served from there
+ * points at the deployment instead. Anywhere else -- Vercel, a tunnel -- the
+ * QR keeps the origin the enrollment was done on, which is also the origin the
+ * credential's RP ID is bound to.
+ */
+const PUBLIC_DEMO_ORIGIN = 'https://swissbit-ideem.vercel.app';
+const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]', '::1'];
+
+function demoUrl(phone) {
+  const base = LOCAL_HOSTNAMES.includes(location.hostname) ? PUBLIC_DEMO_ORIGIN : location.origin;
+  return `${base}/?email=${encodeURIComponent(phone)}`;
+}
+
+/**
+ * Draws the scan-to-open code for a number that is now on a key and in the
+ * database. The generator is vendored and loaded on demand, so if it is
+ * missing the link is still shown and the enrollment still stands.
+ */
+async function showQr(phone) {
+  const url = demoUrl(phone);
+  $('qr-link').textContent = url;
+  $('qr-link').href = url;
+
+  // A credential is bound to the RP ID it was created under, so a key enrolled
+  // on localhost is useless to the deployment the QR opens. Say so here rather
+  // than let it surface as a key that mysteriously will not work.
+  const sameOrigin = url.startsWith(location.origin + '/');
+  $('qr-note').textContent = sameOrigin ? '' :
+    `This page is running on ${location.origin}, so the credential just written belongs to ${location.hostname}. `
+    + 'The QR opens the deployment instead, where that credential does not exist. Enroll from the deployment itself for a key the scanned page can use.';
+  $('qr-note').hidden = sameOrigin;
+
+  try {
+    const { qrcode } = await import('./vendor/qrcode-generator/dist/qrcode.mjs');
+    const qr = qrcode(0, 'M');    // 0: smallest version the data fits in
+    qr.addData(url);
+    qr.make();
+    // Geometry only -- nothing from the form reaches the markup. scalable
+    // drops the pixel size so the stylesheet decides how big it prints, and
+    // the margin is the four-module quiet zone a camera needs to find the code.
+    $('qr-code').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 8 * 4, scalable: true });
+    $('qr-code').hidden = false;
+  } catch (err) {
+    $('qr-code').replaceChildren();
+    $('qr-code').hidden = true;
+    sendLog({ event: 'qr-error', phone, error: { name: err.name, message: err.message } });
+  }
+
+  $('qr-section').hidden = false;
+}
+
+function hideQr() {
+  $('qr-section').hidden = true;
+  $('qr-code').replaceChildren();
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +431,8 @@ async function enroll() {
     }
   };
 
+  hideQr();  // the previous attendee's code must not linger
+
   const btn = $('enroll-btn');
   btn.classList.add('loading');
   btn.disabled = true;
@@ -465,6 +537,10 @@ async function enroll() {
         database: dbError ? { error: dbError } : { action: db.updated ? 'updated' : 'created', userId: db.userId, record: db.record }
       }
     });
+
+    // The hand-off code stands for a number that is genuinely on a key AND in
+    // the database; without the record the demo would open on an empty account.
+    if (!dbError) await showQr(phone);
 
     showFlash(ok ? `Passkey created for ${displayName}` : 'Passkey created, but check the warnings', ok ? 'success' : 'failure');
     sendLog({

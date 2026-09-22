@@ -266,6 +266,37 @@ above (discoverable credential plus server-stored IDs) fixes that.
 this document says to, independently of `ishield.js`. The retrieval side of the
 demo still has to be switched over.
 
+### Handing the attendee off to the demo
+
+The booth Mac enrolls the key; the attendee then carries on with their own
+phone. The seam between the two is a query parameter the demo already honours:
+
+```
+https://swissbit-ideem.vercel.app/?email=9135551234
+```
+
+`app.js` reads `?email=` on load and puts it in the User ID field
+(`app.js:641-648`, present in the deployed copy as well as locally). It also ticks **New** and
+unticks **Passkeys** on the way in, which is worth knowing before the retrieval
+side is rewritten -- an arriving attendee is treated as a new user, not as
+somebody the key already knows. The parameter is named `email` for historical
+reasons; it carries the bare digits, and nothing validates the shape.
+
+Once the credential is written *and* the database record is in place,
+`enroll.js` shows that URL as a QR code (`showQr`). Both conditions matter: a
+code for a number with no record behind it would open the demo on an empty
+account. The code is generated in the page from the vendored
+`qrcode-generator` package -- no image service sees the phone number -- at
+error-correction level M, which for this URL length comes out as a 33x33
+version-4 code. `?email=` is percent-encoded even though digits never need it.
+
+The QR points at `location.origin`, so the code matches the origin the
+credential's RP ID is bound to. The exception is a page served from
+`localhost`, which no phone can reach: there it points at
+`PUBLIC_DEMO_ORIGIN`, the Vercel deployment. Enrolling through a tunnel
+produces tunnel URLs, which is correct -- those credentials belong to the
+tunnel hostname.
+
 ---
 
 ## 5. Open questions
@@ -290,7 +321,7 @@ demo still has to be switched over.
 
 | File | Purpose |
 |---|---|
-| `enroll.html`, `enroll.js` | Booth enrollment page: first name, last name, phone number, one button. Creates the discoverable credential with the settings proven above (`residentKey: required`, `userVerification: discouraged`, `credProtect` level 1 unenforced, `hints: ["security-key"]`, `attestation: none`) and `user.id` = the phone number's digits, so any other device reads it back from the user handle. Checks the result and warns on screen when the credential came back non-discoverable, when the key used a PIN (UV true), or when `credProtect` is not level 1 -- all three break retrieval, and the attendee is still standing there. Warns up front in desktop Chrome, which cannot do this create PIN-less. Run it in Safari on a Mac. |
+| `enroll.html`, `enroll.js` | Booth enrollment page: first name, last name, phone number, one button. Creates the discoverable credential with the settings proven above (`residentKey: required`, `userVerification: discouraged`, `credProtect` level 1 unenforced, `hints: ["security-key"]`, `attestation: none`) and `user.id` = the phone number's digits, so any other device reads it back from the user handle. Checks the result and warns on screen when the credential came back non-discoverable, when the key used a PIN (UV true), or when `credProtect` is not level 1 -- all three break retrieval, and the attendee is still standing there. Warns up front in desktop Chrome, which cannot do this create PIN-less. Run it in Safari on a Mac. On success it also writes the attendee to the user database (`docs/user-api.md`) and shows a QR code that opens the demo with that number already filled in. |
 | `webauthn-util.js` | The parsing both pages share: the CBOR reader, authenticator data (flags, `signCount`, AAGUID, extension outputs such as `credProtect`), and the relying-party checks on `clientDataJSON` and `rpIdHash`. |
 | `fido-test.html`, `fido-test.js` | Raw WebAuthn test page: Create and Get with `residentKey`, `userVerification`, `credProtect` and allow-list choices (`attestation` is fixed at `none`, and both `userVerification` controls default to `discouraged` -- the PIN-less settings this demo needs). Parses authenticator data flags and extensions, verifies signatures, checks counters. The footer names the browser actually rendering the page, read from UA Client Hints rather than `navigator.userAgent` -- that is what caught the stale Chrome 101 above, whose user agent string reported a version it never shipped. |
 | `dev-server.mjs` | Local server (`node dev-server.mjs`, port 8080). Writes every page result to `.dev-logs/fido-test.jsonl` and keeps a shared list of issued credentials (`GET/POST /credentials`) in `.dev-logs/credentials.json`. `.dev-logs/` is git-ignored. |
