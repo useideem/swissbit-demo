@@ -262,6 +262,10 @@ with the credential ID saved in `localStorage` on the enrolling device. A second
 device has no saved ID, so it can't find the key's credential. The approach
 above (discoverable credential plus server-stored IDs) fixes that.
 
+`enroll.html` is the first piece of that work: it enrolls attendees the way
+this document says to, independently of `ishield.js`. The retrieval side of the
+demo still has to be switched over.
+
 ---
 
 ## 5. Open questions
@@ -286,6 +290,8 @@ above (discoverable credential plus server-stored IDs) fixes that.
 
 | File | Purpose |
 |---|---|
+| `enroll.html`, `enroll.js` | Booth enrollment page: first name, last name, phone number, one button. Creates the discoverable credential with the settings proven above (`residentKey: required`, `userVerification: discouraged`, `credProtect` level 1 unenforced, `hints: ["security-key"]`, `attestation: none`) and `user.id` = the phone number's digits, so any other device reads it back from the user handle. Checks the result and warns on screen when the credential came back non-discoverable, when the key used a PIN (UV true), or when `credProtect` is not level 1 -- all three break retrieval, and the attendee is still standing there. Warns up front in desktop Chrome, which cannot do this create PIN-less. Run it in Safari on a Mac. |
+| `webauthn-util.js` | The parsing both pages share: the CBOR reader, authenticator data (flags, `signCount`, AAGUID, extension outputs such as `credProtect`), and the relying-party checks on `clientDataJSON` and `rpIdHash`. |
 | `fido-test.html`, `fido-test.js` | Raw WebAuthn test page: Create and Get with `residentKey`, `userVerification`, `credProtect` and allow-list choices (`attestation` is fixed at `none`, and both `userVerification` controls default to `discouraged` -- the PIN-less settings this demo needs). Parses authenticator data flags and extensions, verifies signatures, checks counters. The footer names the browser actually rendering the page, read from UA Client Hints rather than `navigator.userAgent` -- that is what caught the stale Chrome 101 above, whose user agent string reported a version it never shipped. |
 | `dev-server.mjs` | Local server (`node dev-server.mjs`, port 8080). Writes every page result to `.dev-logs/fido-test.jsonl` and keeps a shared list of issued credentials (`GET/POST /credentials`) in `.dev-logs/credentials.json`. `.dev-logs/` is git-ignored. |
 

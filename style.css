@@ -1256,3 +1256,45 @@ body {
     flex-basis: auto;
   }
 }
+
+/* ===== Enrollment Page (enroll.html) ===== */
+
+.en-card,
+.en-card + .footer {
+  max-width: 520px;
+}
+
+.en-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 0 14px;
+}
+
+.en-card .ft-field {
+  margin-bottom: 16px;
+}
+
+.en-card .btn-primary {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.en-note {
+  margin-top: 14px;
+}
+
+.en-warning {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: #92400e;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+#result-warnings .en-warning {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
