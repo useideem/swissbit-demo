@@ -3,6 +3,6 @@
   "outputDirectory": ".",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/db/:path*", "destination": "/api/db/:path*" }
+    { "source": "/db/:path*", "destination": "/api/db?path=:path*" }
   ]
 }

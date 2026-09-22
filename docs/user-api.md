@@ -82,9 +82,30 @@ everywhere:
 | Where | What forwards `/db/*` |
 |---|---|
 | Local | `dev-server.mjs`, in `handleDb` |
-| Vercel | `api/db/[...path].js`, reached by the rewrite in `vercel.json` |
+| Vercel | `api/db.js`, reached by the rewrite in `vercel.json` |
 
 Both take `DB_API` from the environment to point somewhere else.
+
+**A catch-all function file does not work here.** The first attempt put the
+proxy in `api/db/[...path].js`, and on a real deployment that matched exactly
+one path segment: `/api/db/users` answered, `/api/db/users/9999` and
+`/api/db/users/phone/…` returned Vercel's own `NOT_FOUND` page rather than the
+upstream's 404. The fix is a flat `api/db.js` with nothing dynamic in the
+name, and a rewrite that hands the rest of the path over as a query
+parameter:
+
+```json
+{ "source": "/db/:path*", "destination": "/api/db?path=:path*" }
+```
+
+The function reads the path from `?path=` and falls back to the pathname, so
+it behaves the same when called directly.
+
+**The function's source is readable.** Because `outputDirectory` is `.`, the
+whole repository is the static root, so `/api/db.js` serves its own source
+over HTTP. Nothing in it is secret -- the upstream URL is in the Postman
+collection anyway and there are no credentials anywhere in this repo -- but it
+is worth knowing before anything sensitive goes in that file.
 
 A plain Vercel rewrite straight to the upstream was the obvious alternative and
 was deliberately not used: external rewrite destinations are documented, but
