@@ -239,7 +239,10 @@ async function showQr(phone) {
     sendLog({ event: 'qr-error', phone, error: { name: err.name, message: err.message } });
   }
 
+  // Shown after the result, so this is the scroll that wins: the code is what
+  // the attendee is here for.
   $('qr-section').hidden = false;
+  $('qr-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function hideQr() {
@@ -292,6 +295,12 @@ function pill(label, value, state) {
   return el;
 }
 
+/**
+ * Puts the outcome on screen. The warnings sit above the envelope, in the
+ * open: they are the reason to look at this page at all when something is
+ * wrong. Everything else goes inside the envelope, collapsed, because what the
+ * booth needs on screen is the code the attendee is about to scan.
+ */
 function showResult({ title, pills, warnings, summary }) {
   $('result-title').textContent = title;
   $('result-pills').replaceChildren(...pills.map(p => pill(...p)));
@@ -302,8 +311,9 @@ function showResult({ title, pills, warnings, summary }) {
     return p;
   }));
   $('result-summary').textContent = JSON.stringify(summary, null, 2);
-  $('result-section').hidden = false;
-  $('result-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  $('result-block').hidden = false;
+  $('envelope').hidden = false;
+  $('envelope').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 /** Renders the list of people enrolled from this browser. */
@@ -311,6 +321,9 @@ function renderEnrollments() {
   const list = loadEnrollments();
   $('enrolled-count').textContent = list.length ? `${list.length} enrolled from this browser` : 'Nothing enrolled from this browser yet';
   $('enrolled-section').hidden = !list.length;
+  // The table lives inside the envelope, so earlier enrollments need the
+  // envelope itself on screen (still collapsed) to be reachable at all.
+  if (list.length) $('envelope').hidden = false;
 
   $('enrolled-body').replaceChildren(...list.map(entry => {
     const tr = document.createElement('tr');
@@ -431,7 +444,8 @@ async function enroll() {
     }
   };
 
-  hideQr();  // the previous attendee's code must not linger
+  hideQr();               // the previous attendee's code must not linger
+  $('envelope').open = false;  // and their detail should not be left hanging open
 
   const btn = $('enroll-btn');
   btn.classList.add('loading');

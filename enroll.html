@@ -56,16 +56,10 @@
       one of them for it.
     </p>
 
-    <!-- RESULT — what the key actually did -->
-    <section class="ft-section" id="result-section" aria-labelledby="result-title" hidden>
-      <h2 class="ft-section-title" id="result-title">Result</h2>
-      <div class="status-pills ft-pills" id="result-pills"></div>
-      <div id="result-warnings"></div>
-      <details class="ft-details">
-        <summary>Details</summary>
-        <pre id="result-summary"></pre>
-      </details>
-    </section>
+    <!-- WARNINGS — anything that would break retrieval stays in the open. These
+         are what the booth has to act on while the attendee is still standing
+         there, so they are never folded away. -->
+    <div id="result-warnings"></div>
 
     <!-- SCAN — the enrolled number, handed to the demo on the attendee's phone -->
     <section class="ft-section en-qr" id="qr-section" aria-labelledby="qr-title" hidden>
@@ -76,28 +70,44 @@
       <p class="en-warning en-qr-note" id="qr-note" hidden></p>
     </section>
 
-    <!-- ENROLLED — who this browser has put on a key -->
-    <section class="ft-section" id="enrolled-section" aria-labelledby="enrolled-title" hidden>
-      <div class="ft-section-head">
-        <h2 class="ft-section-title" id="enrolled-title">Enrolled</h2>
-        <button id="clear-enrollments" class="btn-danger-small">Clear all</button>
+    <!-- EVERYTHING ELSE — folded into one envelope so the screen the attendee
+         is looking at is the code and nothing else. Starts collapsed; a click
+         opens what the key reported and who this browser has enrolled. -->
+    <details class="ft-section en-envelope" id="envelope" hidden>
+      <summary class="en-envelope-summary" id="result-title">Enrollment details</summary>
+
+      <!-- RESULT — what the key actually did -->
+      <div id="result-block" hidden>
+        <div class="status-pills ft-pills" id="result-pills"></div>
+        <details class="ft-details">
+          <summary>Raw result</summary>
+          <pre id="result-summary"></pre>
+        </details>
       </div>
-      <p class="ft-hint" id="enrolled-count"></p>
-      <div class="ft-table-wrap">
-        <table class="ft-creds">
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Phone</th>
-              <th scope="col">Enrolled</th>
-              <th scope="col">Credential ID</th>
-              <th scope="col"><span class="sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody id="enrolled-body"></tbody>
-        </table>
-      </div>
-    </section>
+
+      <!-- ENROLLED — who this browser has put on a key -->
+      <section class="en-envelope-section" id="enrolled-section" aria-labelledby="enrolled-title" hidden>
+        <div class="ft-section-head">
+          <h2 class="ft-section-title" id="enrolled-title">Enrolled</h2>
+          <button id="clear-enrollments" class="btn-danger-small">Clear all</button>
+        </div>
+        <p class="ft-hint" id="enrolled-count"></p>
+        <div class="ft-table-wrap">
+          <table class="ft-creds">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Phone</th>
+                <th scope="col">Enrolled</th>
+                <th scope="col">Credential ID</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody id="enrolled-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </details>
 
   </main>
 
