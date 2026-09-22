@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enroll an iShield Key | Swissbit + Ideem</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-row">
+      <img src="./swissbit_logo.png" alt="Swissbit" class="logo logo-swissbit">
+      <span class="logo-divider"></span>
+      <img src="./ideem-logo.png" alt="Ideem" class="logo logo-ideem">
+    </div>
+    <p class="subtitle">Put your phone number on an iShield Key</p>
+  </header>
+
+  <main class="card en-card">
+
+    <!-- Flash message for ceremony feedback -->
+    <div id="flash-status" class="flash" role="status" aria-live="polite"></div>
+
+    <!-- Shown only in desktop Chrome, which cannot do a PIN-less create -->
+    <p class="en-warning" id="chrome-warning" hidden>
+      Desktop Chrome makes the key set a PIN before it will store a passkey, and every
+      device that reads the key afterwards will demand that PIN. Enroll in Safari instead.
+    </p>
+
+    <form id="enroll-form" novalidate>
+      <div class="en-row">
+        <div class="ft-field">
+          <label class="ft-label" for="first-name">First name</label>
+          <input type="text" id="first-name" class="ft-input" autocomplete="given-name" spellcheck="false" required>
+        </div>
+        <div class="ft-field">
+          <label class="ft-label" for="last-name">Last name</label>
+          <input type="text" id="last-name" class="ft-input" autocomplete="family-name" spellcheck="false" required>
+        </div>
+      </div>
+
+      <div class="ft-field">
+        <label class="ft-label" for="phone">Phone number</label>
+        <input type="tel" id="phone" class="ft-input" placeholder="9135551234" autocomplete="tel" inputmode="numeric" required>
+        <p class="ft-hint">Stored as digits only -- dashes, spaces and brackets are stripped. This is what the key carries, and any device can read it back with a touch, with nothing typed.</p>
+      </div>
+
+      <button id="enroll-btn" type="submit" class="btn btn-primary">Create Passkey on iShield</button>
+    </form>
+
+    <p class="ft-hint en-note">
+      Insert the key, then touch it when the browser asks. The key must have no PIN set:
+      a PIN-less key answers with a touch on any phone, while a key with a PIN asks every
+      one of them for it.
+    </p>
+
+    <!-- RESULT — what the key actually did -->
+    <section class="ft-section" id="result-section" aria-labelledby="result-title" hidden>
+      <h2 class="ft-section-title" id="result-title">Result</h2>
+      <div class="status-pills ft-pills" id="result-pills"></div>
+      <div id="result-warnings"></div>
+      <details class="ft-details">
+        <summary>Details</summary>
+        <pre id="result-summary"></pre>
+      </details>
+    </section>
+
+    <!-- SCAN — the enrolled number, handed to the demo on the attendee's phone -->
+    <section class="ft-section en-qr" id="qr-section" aria-labelledby="qr-title" hidden>
+      <h2 class="ft-section-title" id="qr-title">Scan to open the demo</h2>
+      <p class="ft-hint">Point a phone camera at this. The demo opens with this number already in the User ID field.</p>
+      <div class="en-qr-code" id="qr-code" role="img" aria-label="QR code that opens the demo for this phone number"></div>
+      <a class="en-qr-link" id="qr-link" href="#" target="_blank" rel="noopener"></a>
+      <p class="en-warning en-qr-note" id="qr-note" hidden></p>
+    </section>
+
+    <!-- ENROLLED — who this browser has put on a key -->
+    <section class="ft-section" id="enrolled-section" aria-labelledby="enrolled-title" hidden>
+      <div class="ft-section-head">
+        <h2 class="ft-section-title" id="enrolled-title">Enrolled</h2>
+        <button id="clear-enrollments" class="btn-danger-small">Clear all</button>
+      </div>
+      <p class="ft-hint" id="enrolled-count"></p>
+      <div class="ft-table-wrap">
+        <table class="ft-creds">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Phone</th>
+              <th scope="col">Enrolled</th>
+              <th scope="col">Credential ID</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="enrolled-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer ft-footer">
+    <p class="ft-hint" id="browser-info">Checking which browser this is...</p>
+    <a href="./fido-test.html">Key tester</a>
+    <a href="./index.html">Back to the demo</a>
+  </footer>
+
+  <script type="module" src="./enroll.js"></script>
+
+</body>
+</html>
