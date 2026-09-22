@@ -13,6 +13,11 @@
  *   POST /credentials           store { id, rpId, userName, publicKey, ... }
  *   GET  /credentials?rpId=...  list the credentials issued for that RP ID
  *
+ * Finally it proxies /db/* to the Ideem user API. That API sends no CORS
+ * headers, so a page cannot call it from the browser; going through this
+ * server's own origin sidesteps that. Vercel does the same thing in
+ * production, so pages fetch the same relative /db/... path either way.
+ *
  * Local testing only; Vercel serves the static files in production and
  * /log simply isn't there.
  *
@@ -31,6 +36,9 @@ const PORT = Number(process.env.PORT) || 8080;
 const LOG_FILE = join(ROOT, '.dev-logs', 'fido-test.jsonl');
 const CREDS_FILE = join(ROOT, '.dev-logs', 'credentials.json');
 const MAX_LOG_BYTES = 256 * 1024;
+
+/** Where /db/* is forwarded. The same upstream Vercel rewrites to. */
+const DB_API = process.env.DB_API || 'https://sbit.authconcepts.com:3033/api';
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -109,6 +117,44 @@ async function handleCredentials(req, res, url) {
   }
 }
 
+/**
+ * Forwards /db/<path> to the user API and returns its answer verbatim.
+ * The upstream sends no Access-Control-Allow-Origin, so the browser refuses
+ * to call it directly; from here it is same-origin and the question never
+ * comes up. Nothing is cached, and no credentials are attached.
+ */
+async function handleDb(req, res, url) {
+  const target = DB_API + url.pathname.slice('/db'.length) + url.search;
+  let body;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    body = '';
+    for await (const chunk of req) {
+      body += chunk;
+      if (body.length > MAX_LOG_BYTES) {
+        res.writeHead(413).end();
+        return;
+      }
+    }
+  }
+  try {
+    const upstream = await fetch(target, {
+      method: req.method,
+      headers: { ...(body !== undefined && { 'Content-Type': req.headers['content-type'] || 'application/json' }) },
+      body
+    });
+    const text = await upstream.text();
+    console.log(`[db] ${req.method} ${target} -> ${upstream.status}`);
+    res.writeHead(upstream.status, {
+      'Content-Type': upstream.headers.get('content-type') || 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store'
+    }).end(text);
+  } catch (err) {
+    console.error(`[db] ${req.method} ${target} failed: ${err.message}`);
+    res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' })
+      .end(JSON.stringify({ error: 'Upstream user API unreachable', detail: err.message }));
+  }
+}
+
 async function handleStatic(req, res) {
   const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   const relative = normalize(path === '/' ? '/index.html' : path).replace(/^([/\\])+/, '');
@@ -134,6 +180,7 @@ createServer((req, res) => {
   if (url.pathname === '/credentials' && (req.method === 'GET' || req.method === 'POST')) {
     return handleCredentials(req, res, url);
   }
+  if (url.pathname === '/db' || url.pathname.startsWith('/db/')) return handleDb(req, res, url);
   if (req.method === 'GET' || req.method === 'HEAD') return handleStatic(req, res);
   res.writeHead(405).end();
 }).listen(PORT, '127.0.0.1', () => {

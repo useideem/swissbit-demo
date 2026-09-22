@@ -34,9 +34,14 @@
  * PIN every retrieval device demands it -- which kills the demo.
  *
  * WHAT THE KEY CARRIES AWAY: only the phone number (user.id) and the name
- * shown in a picker (user.name / user.displayName). The name is also kept in
- * this browser's localStorage and posted to the dev server, since a get only
- * ever returns the user handle.
+ * shown in a picker (user.name / user.displayName). A get only ever returns
+ * the user handle, so the name lives in the user database instead, keyed by
+ * that same phone number -- which is how the retrieval device turns a touch
+ * into "Toby Rush, $1,250.50".
+ *
+ * PHONE NUMBERS ARE BARE DIGITS everywhere: on the key, in the database, and
+ * in the lookup. The API matches the stored string exactly, so one canonical
+ * form is the only thing that works. Format it for display if you like.
  *
  * STORAGE:
  *   localStorage 'ishield_enrollments' -- one record per credential created
@@ -113,10 +118,63 @@ function normalizePhone(raw) {
   return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
 }
 
-function formatPhone(digits) {
-  return digits.length === 10
-    ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-    : digits;
+// ---------------------------------------------------------------------------
+// User database
+// ---------------------------------------------------------------------------
+
+/**
+ * The Ideem user API, reached through the proxy this site runs at /db.
+ * The API itself sends no CORS headers, so the browser cannot call it
+ * directly; dev-server.mjs and api/db/[...path].js both forward to it.
+ */
+const DB_BASE = './db';
+
+/** A plausible balance for a demo account, since the booth form doesn't ask. */
+function demoBalance() {
+  return Math.round((500 + Math.random() * 9000) * 100) / 100;
+}
+
+/**
+ * Looks a user up by phone number. The API matches the stored string exactly,
+ * which is why everything here uses bare digits end to end.
+ *
+ * @returns {Promise<object|null>} The record, or null when there is none.
+ */
+async function findUserByPhone(phone) {
+  const res = await fetch(`${DB_BASE}/users/phone/${encodeURIComponent(phone)}`, { cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`lookup returned ${res.status}`);
+  const body = await res.json();
+  return Array.isArray(body) ? body[0] ?? null : body;  // by-phone answers with an array
+}
+
+/**
+ * Writes the attendee to the user database: a new record, or an update when
+ * that number is already there. An existing balance and photo are kept, so
+ * re-enrolling somebody does not wipe what the demo shows for them.
+ */
+async function saveUser({ firstName, lastName, phone }) {
+  const existing = await findUserByPhone(phone);
+  const record = {
+    firstName,
+    lastName,
+    phone,
+    balance: existing?.balance ?? demoBalance(),
+    photo: existing?.photo ?? null,
+    customAttrib: `Enrolled at the Swissbit booth ${new Date().toISOString().slice(0, 10)}`
+  };
+
+  const res = await fetch(existing ? `${DB_BASE}/users/${existing.userId}` : `${DB_BASE}/users`, {
+    method: existing ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(record)
+  });
+  if (!res.ok) throw new Error(`${existing ? 'update' : 'create'} returned ${res.status}`);
+
+  const text = await res.text();
+  let returned = null;
+  try { returned = text ? JSON.parse(text) : null; } catch (_) { /* not JSON; the status is what matters */ }
+  return { updated: !!existing, userId: existing?.userId ?? returned?.userId ?? null, record, returned };
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +246,7 @@ function renderEnrollments() {
     const tr = document.createElement('tr');
     const cells = [
       `${entry.firstName} ${entry.lastName}`.trim(),
-      formatPhone(entry.phone),
+      entry.phone,
       new Date(entry.createdAt).toLocaleString(),
       entry.id.slice(0, 12) + '…'
     ];
@@ -281,7 +339,7 @@ async function enroll() {
 
   const publicKey = {
     rp: { id: rpId, name: RP_NAME },
-    user: { id: userId, name: formatPhone(phone), displayName },
+    user: { id: userId, name: phone, displayName },
     challenge,
     pubKeyCredParams: PUB_KEY_CRED_PARAMS,
     timeout: TIMEOUT_MS,
@@ -348,9 +406,23 @@ async function enroll() {
       body: JSON.stringify({ ...entry, rpId, userName: phone })
     }).catch(() => {});
 
+    // Write the attendee to the user database. This runs after the key work,
+    // so a cancelled or failed ceremony never leaves a record behind for
+    // somebody who is not actually enrolled.
+    let db = null;
+    let dbError = null;
+    try {
+      db = await saveUser({ firstName, lastName, phone });
+    } catch (err) {
+      dbError = err.message;
+    }
+
     // Anything that would break the retrieval flow is called out here, while
     // the attendee and the key are still at the booth.
     const warnings = [];
+    if (dbError) {
+      warnings.push(`The key is enrolled, but the user database was not updated (${dbError}). The retrieval device will find the phone number and no name behind it.`);
+    }
     if (rk === false) {
       warnings.push('The key did not make this credential discoverable, so another device will not find it. Enroll again in Safari on a Mac.');
     }
@@ -364,11 +436,12 @@ async function enroll() {
       warnings.push('The challenge, origin or RP ID check did not match. Treat this enrollment as suspect.');
     }
 
-    const ok = rk !== false && !authData.flags.UV && ceremonyOk;
+    const ok = rk !== false && !authData.flags.UV && ceremonyOk && !dbError;
     showResult({
       title: ok ? `${displayName} is on the key` : `${displayName} enrolled, with warnings`,
       pills: [
-        ['Phone on key', formatPhone(phone), 'success'],
+        ['Phone on key', phone, 'success'],
+        ['Database', dbError ? 'failed' : db.updated ? `updated #${db.userId}` : `created${db.userId ? ' #' + db.userId : ''}`, dbError ? 'danger' : 'success'],
         ['Discoverable', rk === undefined ? 'not reported' : String(rk), rk ? 'success' : rk === false ? 'danger' : 'unknown'],
         ['credProtect', cpLevel ? `${cpLevel} (${CRED_PROTECT_LEVELS[cpLevel] || 'unknown'})` : 'not reported', cpLevel === 1 ? 'success' : 'unknown'],
         ['PIN used', authData.flags.UV ? 'yes' : 'no', authData.flags.UV ? 'danger' : 'success'],
@@ -388,12 +461,16 @@ async function enroll() {
         flags: authData.flags,
         signCount: authData.signCount,
         rpId,
-        checks: { type: checks.type, challenge: checks.challenge, origin: checks.origin, rpIdHash: checks.rpIdHash }
+        checks: { type: checks.type, challenge: checks.challenge, origin: checks.origin, rpIdHash: checks.rpIdHash },
+        database: dbError ? { error: dbError } : { action: db.updated ? 'updated' : 'created', userId: db.userId, record: db.record }
       }
     });
 
     showFlash(ok ? `Passkey created for ${displayName}` : 'Passkey created, but check the warnings', ok ? 'success' : 'failure');
-    sendLog({ event: 'enroll', ok, phone, displayName, credentialId: cred.id, rk, credProtect: cpLevel, uv: authData.flags.UV });
+    sendLog({
+      event: 'enroll', ok, phone, displayName, credentialId: cred.id, rk, credProtect: cpLevel, uv: authData.flags.UV,
+      database: dbError ? { error: dbError } : { action: db.updated ? 'updated' : 'created', userId: db.userId }
+    });
 
     $('first-name').value = '';
     $('last-name').value = '';
@@ -431,10 +508,10 @@ document.addEventListener('DOMContentLoaded', () => {
     showFlash('Cleared this browser’s records. Nothing was removed from any key.', 'success');
   });
 
-  // Show the number the way it will be stored, as it is typed
+  // Show the number the way it will be stored: digits only
   $('phone').addEventListener('blur', () => {
     const digits = normalizePhone($('phone').value);
-    if (digits) $('phone').value = formatPhone(digits);
+    if (digits) $('phone').value = digits;
   });
 
   renderEnrollments();
