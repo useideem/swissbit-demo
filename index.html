@@ -34,7 +34,17 @@
     <!-- Username — always visible -->
     <div class="username-row">
       <label for="username">User ID</label>
-      <input type="text" id="username" placeholder="Enter your user ID" autocomplete="off">
+      <!-- The password-manager opt-outs are deliberate. iOS and 1Password
+           ignore autocomplete="off" on anything their heuristics read as a
+           username field, and "USER ID" plus id="username" is exactly that, so
+           a saved *.vercel.app login was being offered over the top of the
+           page. name= is what WebKit weighs most, hence the neutral one; the
+           data-* attributes are the documented opt-outs for 1Password,
+           LastPass, Bitwarden and Dashlane. -->
+      <input type="text" id="username" name="ishield-user-id" placeholder="Enter your user ID"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+             inputmode="numeric"
+             data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <div class="toggle-stack" id="toggle-stack">
         <div class="toggle-inline" id="new-user-toggle-container">
           <span class="toggle-inline-label">New</span>

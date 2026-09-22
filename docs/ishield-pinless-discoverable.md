@@ -275,11 +275,50 @@ phone. The seam between the two is a query parameter:
 https://swissbit-ideem.vercel.app/?userid=9135551234
 ```
 
-`app.js` reads `?userid=` on load and puts it in the User ID field
-(`app.js:640-651`). It also ticks **New** and unticks **Passkeys** on the way
-in, which is worth knowing before the retrieval side is rewritten -- an
-arriving attendee is treated as a new user, not as somebody the key already
-knows. The value is the bare digits, and nothing validates its shape.
+`app.js` reads `?userid=` on load and puts it in the User ID field. The value
+is the bare digits, and nothing validates its shape.
+
+It also switches **New** off. That matters more than it looks: the toggle
+picks the ceremony. New on routes to `trustDevice()`, which calls
+`webauthnEnroll` -- a **create**, which on a key that already holds this number
+would write a second credential for the same person. New off routes to
+`login()`, which calls `webauthnAuthenticate` -- a **get**, which is the whole
+point of arriving from the booth. Somebody scanning the QR was enrolled a
+moment ago, so they are an existing user on a new device, and that is the path
+they belong on.
+
+### The User ID on screen has to be the credential on the key
+
+`reconcileUserId` (`app.js`) settles it after every get. The key is the
+authority: it hands back the user handle stored in the credential, and:
+
+- a **different identity** stops the flow -- the demo will not carry on under a
+  name the key never vouched for;
+- a **different spelling of the same number** (`913-555-1235`, `19135551235`)
+  is accepted and the field is rewritten to the key's own spelling, so after a
+  successful touch the two are literally equal. The digits rule is the same one
+  `normalizePhone` in `enroll.js` applied on the way onto the key;
+- a credential that returns **no user handle** -- the old non-discoverable kind
+  `ishield.js` used to create -- leaves the typed value alone, because there is
+  nothing to compare it against.
+
+Everything downstream (ZSM binding, the enrollment marker, `STATE.loginID`)
+then keys off the key's spelling rather than whatever was typed.
+
+### Password managers fight for that field
+
+On an iPhone the field was being covered by an iOS AutoFill sheet offering a
+saved `vercel.app` password -- not a passkey prompt, and nothing to do with
+WebAuthn; no ceremony has run at that point. `autocomplete="off"` does not stop
+it, because the heuristics key off a field that looks like a username, and
+`id="username"` under a label reading "USER ID" is exactly that. `vercel.app`
+being a shared domain widens the match to any saved `*.vercel.app` login.
+
+What the field carries now: a neutral `name` (WebKit weighs `name` above `id`),
+`inputmode="numeric"`, and the documented opt-outs `data-1p-ignore`,
+`data-lpignore`, `data-bwignore`, `data-form-type="other"`. Arriving from the
+QR also lands on the LOGIN screen, where `showScreen` already makes the field
+readonly -- and a readonly field is not offered autofill at all.
 
 The parameter used to be `email`, a leftover from when the demo identified
 people by address. Nothing accepts that spelling any more, so a QR code

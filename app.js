@@ -54,6 +54,39 @@ function getUsername() {
   return document.getElementById('username')?.value?.trim().toLowerCase() || '';
 }
 
+/**
+ * Digits of a phone-shaped User ID, with the US trunk prefix dropped, so
+ * "1 (913) 555-1235" and "9135551235" read as the same number. This is the
+ * same rule normalizePhone in enroll.js applies before putting the number on
+ * the key, which is what makes the two comparable.
+ */
+function phoneDigits(value) {
+  const digits = value.replace(/\D/g, '');
+  return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+}
+
+/**
+ * Reconciles the User ID on screen with the identity the iShield key just
+ * proved. The key is the authority: it hands back the user handle stored in
+ * the credential, and the screen has to agree with it.
+ *
+ * Returns null when they are different people -- the caller must stop rather
+ * than carry on under a name the key never vouched for. Otherwise it returns
+ * the key's own spelling and writes it into the field, so after a successful
+ * touch the User ID on screen IS the credential on the key. A credential that
+ * returns no user handle (the old non-discoverable kind) leaves the typed
+ * value alone; there is nothing to compare it against.
+ */
+function reconcileUserId(typed, fromKey) {
+  if (!fromKey) return typed;
+  if (typed !== fromKey && (!phoneDigits(typed) || phoneDigits(typed) !== phoneDigits(fromKey))) {
+    return null;
+  }
+  document.getElementById('username').value = fromKey;
+  localStorage.setItem('username', fromKey);
+  return fromKey;
+}
+
 // ---------------------------------------------------------------------------
 // Confirmation Popup helpers
 // ---------------------------------------------------------------------------
@@ -358,7 +391,7 @@ async function trustDevice() {
 // login — authenticate with Passkeys+ only
 // ---------------------------------------------------------------------------
 async function login() {
-  const user = getUsername();
+  let user = getUsername();  // replaced by the key's own spelling once it answers
   if (!user) return;
 
   const btn = document.getElementById('login-btn');
@@ -402,13 +435,17 @@ async function login() {
         updateIShieldChallengeDisplay(ishieldResult.clientDataHash, ishieldResult.signatureHex);
       }
 
-      // Verify the key's credential matches the entered username
-      if (ishieldResult.authenticatedUser && ishieldResult.authenticatedUser !== user) {
+      // The User ID on screen has to be the credential the key holds. A
+      // different identity stops here; a different spelling of the same number
+      // is adopted, so what is on screen is literally what is on the key.
+      const confirmed = reconcileUserId(user, ishieldResult.authenticatedUser);
+      if (!confirmed) {
         showFlash('flash-status',
           `Wrong credential selected — key returned "${ishieldResult.authenticatedUser}" but you entered "${user}". Please try again and select the correct credential.`,
           'failure', 8000);
         return;
       }
+      user = confirmed;
 
       // Step 2: Enroll ZSM (+ Passkeys if toggle is on)
       const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
@@ -449,13 +486,17 @@ async function login() {
       }
       updateIShieldChallengeDisplay(ishieldResult.clientDataHash, ishieldResult.signatureHex);
 
-      // Verify the key's credential matches the entered username
-      if (ishieldResult.authenticatedUser && ishieldResult.authenticatedUser !== user) {
+      // The User ID on screen has to be the credential the key holds. A
+      // different identity stops here; a different spelling of the same number
+      // is adopted, so what is on screen is literally what is on the key.
+      const confirmed = reconcileUserId(user, ishieldResult.authenticatedUser);
+      if (!confirmed) {
         showFlash('flash-status',
           `Wrong credential selected — key returned "${ishieldResult.authenticatedUser}" but you entered "${user}". Please try again and select the correct credential.`,
           'failure', 8000);
         return;
       }
+      user = confirmed;
 
       const usePasskeys = document.getElementById('use-passkeys-toggle').checked;
       showFlash('flash-status', 'Authenticating to complete reactivation...', 'success');
@@ -645,7 +686,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (urlUserId) {
     document.getElementById('username').value = urlUserId;
     localStorage.setItem('username', urlUserId);
-    document.getElementById('new-user-toggle').checked = true;
+    // Somebody arriving from the booth QR was enrolled on a key a moment ago,
+    // so they are an existing user on a new device: New OFF routes them to the
+    // login path, which READS the key and checks its user handle against this
+    // field. New ON would run the create path instead and write a second
+    // credential to the same key for the same number.
+    document.getElementById('new-user-toggle').checked = false;
     document.getElementById('use-passkeys-toggle').checked = false;
     setPasskeysToggle(urlUserId, false);
   }
@@ -659,11 +705,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // "New" toggle — switching it re-routes to SETUP or LOGIN
   document.getElementById('new-user-toggle').addEventListener('change', () => updateUI());
 
-  // Show hint when clicking readonly username field
+  // Show hint when clicking readonly username field. The field is readonly for
+  // two different reasons, and the way out differs: on ACTIONS the session owns
+  // the identity, while on LOGIN it is an existing user's number -- which is
+  // also the state somebody arriving from the booth QR lands in.
   document.getElementById('username').addEventListener('click', (e) => {
-    if (e.target.readOnly) {
-      showFlash('flash-status', 'Reset Device before changing User ID', 'failure', 3000);
-    }
+    if (!e.target.readOnly) return;
+    showFlash('flash-status',
+      STATE.loginID ? 'Reset Device before changing User ID' : 'Switch New on to change the User ID',
+      'failure', 3000);
   });
 
   // Persist username on input, update button state, and recheck enrollment status
