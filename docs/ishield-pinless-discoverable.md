@@ -269,18 +269,22 @@ demo still has to be switched over.
 ### Handing the attendee off to the demo
 
 The booth Mac enrolls the key; the attendee then carries on with their own
-phone. The seam between the two is a query parameter the demo already honours:
+phone. The seam between the two is a query parameter:
 
 ```
-https://swissbit-ideem.vercel.app/?email=9135551234
+https://swissbit-ideem.vercel.app/?userid=9135551234
 ```
 
-`app.js` reads `?email=` on load and puts it in the User ID field
-(`app.js:641-648`, present in the deployed copy as well as locally). It also ticks **New** and
-unticks **Passkeys** on the way in, which is worth knowing before the retrieval
-side is rewritten -- an arriving attendee is treated as a new user, not as
-somebody the key already knows. The parameter is named `email` for historical
-reasons; it carries the bare digits, and nothing validates the shape.
+`app.js` reads `?userid=` on load and puts it in the User ID field
+(`app.js:640-651`). It also ticks **New** and unticks **Passkeys** on the way
+in, which is worth knowing before the retrieval side is rewritten -- an
+arriving attendee is treated as a new user, not as somebody the key already
+knows. The value is the bare digits, and nothing validates its shape.
+
+The parameter used to be `email`, a leftover from when the demo identified
+people by address. Nothing accepts that spelling any more, so a QR code
+generated before the rename lands on the demo with an empty field rather than
+a filled one.
 
 Once the credential is written *and* the database record is in place,
 `enroll.js` shows that URL as a QR code (`showQr`). Both conditions matter: a
@@ -288,7 +292,7 @@ code for a number with no record behind it would open the demo on an empty
 account. The code is generated in the page from the vendored
 `qrcode-generator` package -- no image service sees the phone number -- at
 error-correction level M, which for this URL length comes out as a 33x33
-version-4 code. `?email=` is percent-encoded even though digits never need it.
+version-4 code. The value is percent-encoded even though digits never need it.
 
 The QR points at `location.origin`, so the code matches the origin the
 credential's RP ID is bound to. The exception is a page served from

@@ -44,9 +44,9 @@
  * form is the only thing that works. Format it for display if you like.
  *
  * ONCE THE KEY AND THE DATABASE BOTH AGREE, the page shows a QR code pointing
- * at the demo with ?email=<digits>. app.js already reads that parameter into
- * the User ID field on load, so the attendee's own phone opens the demo
- * knowing which account it is looking at, with nothing typed.
+ * at the demo with ?userid=<digits>. app.js reads that parameter into the User
+ * ID field on load, so the attendee's own phone opens the demo knowing which
+ * account it is looking at, with nothing typed.
  *
  * STORAGE:
  *   localStorage 'ishield_enrollments' -- one record per credential created
@@ -187,8 +187,8 @@ export async function saveUser({ firstName, lastName, phone }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Where the QR code sends the attendee's phone. app.js reads ?email= into the
- * User ID field on load (app.js:641-648), so the number the key now carries
+ * Where the QR code sends the attendee's phone. app.js reads ?userid= into the
+ * User ID field on load (app.js:640-651), so the number the key now carries
  * arrives typed in.
  *
  * A phone cannot reach the booth Mac's localhost, so a page served from there
@@ -201,7 +201,7 @@ const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]', '::1'];
 
 function demoUrl(phone) {
   const base = LOCAL_HOSTNAMES.includes(location.hostname) ? PUBLIC_DEMO_ORIGIN : location.origin;
-  return `${base}/?email=${encodeURIComponent(phone)}`;
+  return `${base}/?userid=${encodeURIComponent(phone)}`;
 }
 
 /**

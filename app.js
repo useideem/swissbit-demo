@@ -637,15 +637,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('username').value = savedUsername;
   }
 
-  // Auto-populate from URL parameters
+  // Auto-populate from URL parameters. ?userid= is what the enrollment page's
+  // QR code carries: the attendee scans it and arrives with their number
+  // already in the field, having typed nothing.
   const urlParams = new URLSearchParams(window.location.search);
-  const urlEmail = urlParams.get('email');
-  if (urlEmail) {
-    document.getElementById('username').value = urlEmail;
-    localStorage.setItem('username', urlEmail);
+  const urlUserId = urlParams.get('userid');
+  if (urlUserId) {
+    document.getElementById('username').value = urlUserId;
+    localStorage.setItem('username', urlUserId);
     document.getElementById('new-user-toggle').checked = true;
     document.getElementById('use-passkeys-toggle').checked = false;
-    setPasskeysToggle(urlEmail, false);
+    setPasskeysToggle(urlUserId, false);
   }
 
   // ?msg= — show flash message from redirect
